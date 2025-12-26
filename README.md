@@ -1,32 +1,31 @@
 <div align="center">
   <p>
-    <img src="https://img.shields.io/badge/version-1.1.0-blue.svg" alt="Version 1.1.0"/>
-    <a href="https://github.com/Xutaotaotao/get-installed-apps/actions/workflows/main.yml"><img src="https://github.com/Xutaotaotao/get-installed-apps/actions/workflows/main.yml/badge.svg" alt="build status"></a>
+    <img src="https://img.shields.io/badge/version-1.1.0-blue.svg" alt="Version 1.2.1"/>
+    <!-- <a href="https://github.com/Xutaotaotao/get-installed-apps/actions/workflows/main.yml"><img src="https://github.com/Xutaotaotao/get-installed-apps/actions/workflows/main.yml/badge.svg" alt="build status"></a> -->
     <img src="https://img.shields.io/npm/dt/get-installed-apps" alt="downloads" />
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License"/>
-    <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey.svg" alt="Platform: Windows | macOS"/>
+    <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-success.svg" alt="Platform: Windows | macOS | Linux"/>
   </p>
 </div>
 <div align="center">
 
-  English | [简体中文](https://github.com/Xutaotaotao/get-installed-apps/blob/master/README-zh_CN.md)
-  
+English | [简体中文](https://github.com/jbrink90/get-installed-apps/blob/master/README-zh_CN.md)
+
 </div>
 
-# Get Insatlled Apps
+<!-- # Get Insatlled Apps
 
-
-Get installed app using Node.js, supporting Windows and macOS. 
+Get installed app using Node.js, supporting Windows, macOS, and Linux.
 
 MCP：https://github.com/Xutaotaotao/mcp-get-installed-apps
 
 # 👨‍💻 Install
 
-`npm install get-installed-apps`
+`npm install get-installed-apps` -->
 
 # 🔌 Usage
 
-ES6 Module 
+ES6 Module
 
 ```
 import {getInstalledApps} from 'get-installed-apps'
@@ -47,7 +46,6 @@ getInstalledApps().then(apps => {
 
 If you want to use macOS-specific methods separately, you can do it like this.
 
-
 ```
 import {getMacInstalledApps} from 'get-installed-apps'
 
@@ -56,9 +54,9 @@ getMacInstalledApps().then(apps => {
 })
 ```
 
-`getMacInstalledApps` has a optional parameter directory, defalut is '/Applications',you can set it what you need.
+`getMacInstalledApps` has a optional parameter directory, default is '/Applications', you can set it to what you need.
 
-If you want to use windows-specific methods separately, you can do it like this.
+If you want to use Windows-specific methods separately, you can do it like this.
 
 ```
 import {getWinInstalledApps} from 'get-installed-apps'
@@ -68,11 +66,21 @@ getWinInstalledApps().then(apps => {
 })
 ```
 
+And for Linux-specific methods:
+
+```
+import {getLinuxInstalledApps} from 'get-installed-apps'
+
+getLinuxInstalledApps().then(apps => {
+  console.log(apps)
+})
+```
+
 # ✅ OUTPUT
 
 Return an array.
 
-This is the return value for Visual Studio Code,the properties appName, appIdentifier, appInstallDate, and appVersion are overridden.
+This is the return value for Visual Studio Code, the properties appName, appIdentifier, appInstallDate, and appVersion are overridden.
 
 - macOS
 
@@ -115,7 +123,9 @@ This is the return value for Visual Studio Code,the properties appName, appIdent
     appVersion: '1.79.0'
   }],
 ```
+
 - Windows
+
 ```
 [
   {
@@ -153,23 +163,42 @@ This is the return value for Visual Studio Code,the properties appName, appIdent
 ]
 ```
 
+- Linux
+
+```
+[
+  {
+    name: 'fail2ban',
+    packageId: 'fail2ban',
+    version: '1.0.2-2',
+    type: 'dpkg',
+    architecture: 'all',
+    maintainer: 'Debian Python Team <team+python@tracker.debian.org>',
+    section: 'net',
+    description: 'ban hosts that cause multiple authentication errors',
+    installed_size: 2180096,
+    repository: null,
+    license: null,
+    install_date: null,
+    is_system_package: 0,
+    is_auto_installed: 0
+  }
+]
+```
 
 # 🤔 How it works
 
 - macOS
-Retrieve the software file directory under 'Applications', use 'mdls' to fetch relevant information about the software files, and then extract the corresponding information.
+  Retrieves the software file directory under 'Applications'. Uses 'mdls' to fetch relevant information about the software files, and then extracts the corresponding information.
 - Windows
-Retrieve software information by reading data from the registry.
-
-# 📱 Contact me
-
-Use WeChat to contact me
-
-<img src="https://xutaotaotao.github.io/wx_qr.jpeg" width="200"/>
+  Retrieves software information by reading data from the registry.
+- Linux
+  Retrieves software information by querying entries listed in DPKG, APT, SNAP, and Flatpak.
 
 # 🛠 Development
+
 ```
-git clone https://github.com/Xutaotaotao/get-installed-apps.git
+git clone https://github.com/jbrink90/get-installed-apps.git
 
 cd get-installed-apps
 

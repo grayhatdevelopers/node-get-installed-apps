@@ -1,7 +1,7 @@
 <div align="center">
   <p>
     <img src="https://img.shields.io/badge/version-1.1.0-blue.svg" alt="Version 1.2.1"/>
-    <!-- <a href="https://github.com/Xutaotaotao/get-installed-apps/actions/workflows/main.yml"><img src="https://github.com/Xutaotaotao/get-installed-apps/actions/workflows/main.yml/badge.svg" alt="build status"></a> -->
+    <!-- <a href="https://github.com/jbrink90/get-installed-apps/actions/workflows/main.yml"><img src="https://github.com/jbrink90/get-installed-apps/actions/workflows/main.yml/badge.svg" alt="build status"></a> -->
     <img src="https://img.shields.io/npm/dt/get-installed-apps" alt="downloads" />
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License"/>
     <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-success.svg" alt="Platform: Windows | macOS | Linux"/>
@@ -13,22 +13,20 @@ English | [简体中文](https://github.com/jbrink90/get-installed-apps/blob/mas
 
 </div>
 
-<!-- # Get Insatlled Apps
+# Get Installed Apps (Linux support)
 
-Get installed app using Node.js, supporting Windows, macOS, and Linux.
+Get installed apps and packages using Node.js. Supports Windows, macOS, and Linux.
 
-MCP：https://github.com/Xutaotaotao/mcp-get-installed-apps
+# 👨‍💻 Installation
 
-# 👨‍💻 Install
-
-`npm install get-installed-apps` -->
+`npm install get-installed-apps-linux`
 
 # 🔌 Usage
 
 ES6 Module
 
 ```
-import {getInstalledApps} from 'get-installed-apps'
+import {getInstalledApps} from 'get-installed-apps-linux'
 
 getInstalledApps().then(apps => {
   console.log(apps)
@@ -38,7 +36,7 @@ getInstalledApps().then(apps => {
 CommonJS
 
 ```
-const {getInstalledApps} = require('get-installed-apps')
+const {getInstalledApps} = require('get-installed-apps-linux')
 getInstalledApps().then(apps => {
   console.log(apps)
 })
@@ -47,19 +45,19 @@ getInstalledApps().then(apps => {
 If you want to use macOS-specific methods separately, you can do it like this.
 
 ```
-import {getMacInstalledApps} from 'get-installed-apps'
+import {getMacInstalledApps} from 'get-installed-apps-linux'
 
 getMacInstalledApps().then(apps => {
   console.log(apps)
 })
 ```
 
-`getMacInstalledApps` has a optional parameter directory, default is '/Applications', you can set it to what you need.
+`getMacInstalledApps` has a optional parameter directory. The default is '/Applications', you can set it to what you need.
 
 If you want to use Windows-specific methods separately, you can do it like this.
 
 ```
-import {getWinInstalledApps} from 'get-installed-apps'
+import {getWinInstalledApps} from 'get-installed-apps-linux'
 
 getWinInstalledApps().then(apps => {
   console.log(apps)
@@ -69,7 +67,7 @@ getWinInstalledApps().then(apps => {
 And for Linux-specific methods:
 
 ```
-import {getLinuxInstalledApps} from 'get-installed-apps'
+import {getLinuxInstalledApps} from 'get-installed-apps-linux'
 
 getLinuxInstalledApps().then(apps => {
   console.log(apps)
@@ -78,7 +76,7 @@ getLinuxInstalledApps().then(apps => {
 
 # ✅ OUTPUT
 
-Return an array.
+Returns an array of applications or packages and their identifying attributes.
 
 This is the return value for Visual Studio Code, the properties appName, appIdentifier, appInstallDate, and appVersion are overridden.
 
@@ -207,3 +205,9 @@ npm i
 npm start
 
 ```
+
+# 🙏 Special Thanks
+
+Thank you to <a href="https://github.com/Xutaotaotao/">Xutaotaotao</a> for kicking off this project.
+<br/>
+<a href="https://github.com/Xutaotaotao/get-installed-apps">[Original branch]</a>

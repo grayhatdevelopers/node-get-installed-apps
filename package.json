@@ -28,6 +28,7 @@
     "start": "node dist/index.js",
     "example": "node example.js",
     "dev": "node example.js",
+    "test": "ts-node src/test-mac.ts",
     "trypublish": "npm publish || true"
   },
   "author": "jbrink90",

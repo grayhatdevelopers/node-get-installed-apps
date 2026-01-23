@@ -49,9 +49,29 @@ async function testMdls() {
   }
 }
 
+async function testMdlsFailureFallbackToPlutil() {
+  // Test with wrong-case path to existing app: mdls fails due to indexing issues, but plutil succeeds via case-insensitive filesystem
+  const testApps = ['/Applications/activitywatch.app']; // Note: lowercase 'a', actual is 'ActivityWatch.app'
+  
+  try {
+    const result = getAppsFileInfo(testApps);
+    console.log('Mdls Failure Fallback Test result:', result);
+    
+    // Expect mdls to fail, fallback to plutil to succeed, resulting in parsed data with isPlutil: true
+    if (result.length > 0 && result[0].isPlutil) {
+      console.log('Mdls failed, fallback to plutil succeeded as expected');
+    } else {
+      console.log('Unexpected result: expected plutil fallback to work');
+    }
+  } catch (error) {
+    console.error('Mdls Failure Fallback test failed:', error);
+  }
+}
+
 async function runTests() {
   await testPlutil();
   await testMdls();
+  await testMdlsFailureFallbackToPlutil();
 }
 
 runTests();

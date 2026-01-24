@@ -80,7 +80,12 @@ export function getAppsFileInfo(appsFile: readonly string[]): Array<any> {
   }
   for (let j = 0; j < splitIndexArr.length; j++) {
     const appData = stdoutDataArr.slice(splitIndexArr[j], splitIndexArr[j + 1]);
-    allAppsFileInfoList.push({ data: appData, isPlutil: false });
+    allAppsFileInfoList.push({
+      appName: appData as string[],
+      appVersion: appData as string[],
+      appInstallDate: appData as string[],
+      appIdentifier: appData as string[]
+     });
       }
     } else {
       // mdls failed, throw to trigger fallback
@@ -99,8 +104,37 @@ export function getAppsFileInfo(appsFile: readonly string[]): Array<any> {
         if (runPlutilShell.status === 0) {
           const stdoutData = runPlutilShell.stdout ?? "";
           const stdoutDataArrPlutils = stdoutData.split(/[(\r\n)\r\n]+/).filter((line) => line.length > 0);
-          allAppsFileInfoList.push({ data: stdoutDataArrPlutils, isPlutil: true });
+          
+          let appName = "";
+          let appVersion = "";
+          let appIdentifier = "";
+          
+          for (const line of stdoutDataArrPlutils) {
+            const match = line.match(/"([^"]+)"\s*=>\s*"([^"]+)"/);
+            if (match) {
+              const key = match[1];
+              const value = match[2];
+              
+              if (key === "CFBundleDisplayName" || (key === "CFBundleName" && !appName)) {
+                appName = value;
+              }
+              if (key === "CFBundleVersion") {
+                appVersion = value;
+              }
+              if (key === "CFBundleIdentifier") {
+                appIdentifier = value;
+              }
+            }
+          }
+          
+          allAppsFileInfoList.push({ 
+            appName,
+            appVersion,
+            appInstallDate: "",
+            appIdentifier
+          });
         }
+         
       } catch (err) {
         // plutil failed for this app, continue with next
       }
@@ -112,66 +146,45 @@ export function getAppsFileInfo(appsFile: readonly string[]): Array<any> {
 
 /**
  * getAppData
- * @param appFileInfo - Object with data array and isPlutil flag
+ * @param appFileInfo 
  * @returns One app data
  */
-export function getAppData(appFileInfo: { data: Array<any>, isPlutil: boolean }) {
+export function getAppData(appFileInfo: { appName: string[], appVersion: string[], appInstallDate: string[], appIdentifier: string[] }) {
   try {
     const getKeyVal = (lineData: string) => {
       try {
-        if (appFileInfo.isPlutil) {
-          // plutil format: '  "CFBundleName" => "ActivityWatch"'
-          const match = lineData.match(/"([^"]+)"\s*=>\s*(.+)/);
-          if (match) {
-            const key = match[1];
-            let value = match[2].trim();
-            if (value.startsWith('"') && value.endsWith('"')) {
-              value = value.slice(1, -1);
-            }
-            return { key, value };
+        // Try plutil format: '  "CFBundleName" => "ActivityWatch"'
+        const plutilMatch = lineData.match(/"([^"]+)"\s*=>\s*(.+)/);
+        if (plutilMatch) {
+          const key = plutilMatch[1];
+          let value = plutilMatch[2].trim();
+          if (value.startsWith('"') && value.endsWith('"')) {
+            value = value.slice(1, -1);
           }
-        } else {
-          const lineDataArr = lineData.split("=");
-          return {
-            key: lineDataArr[0].trim().replace(/\"/g, ""),
-            value: lineDataArr[1] ? lineDataArr[1].trim().replace(/\"/g, "") : "",
-          };
+          return { key, value };
         }
-        return { key: "", value: "" };
+        // Try mdls format: 'kMDItemDisplayName = "App Name"'
+        const lineDataArr = lineData.split("=");
+        return {
+          key: lineDataArr[0].trim().replace(/\"/g, ""),
+          value: lineDataArr[1] ? lineDataArr[1].trim().replace(/\"/g, "") : "",
+        };
       } catch (error) {
         return { key: "", value: "" };
       }
     };
 
-    const getAppInfoData = (appArr: Array<any>, isPlutil: boolean) => {
+    const getAppInfoData = (appArr: Array<any>) => {
       let appData: any = {};
       try {
         appArr
           .filter((i: any) => i)
           .forEach((o: any) => {
-          if(isPlutil){
             let appKeyVal = getKeyVal(o);
             if (appKeyVal.value) {
               appData[appKeyVal.key] = appKeyVal.value;
             }
-            if (o.includes("CFBundleName")) {
-              appData.appName = appKeyVal.value;
-            }
-            if (o.includes("CFBundleShortVersionString")) {
-              appData.appVersion = appKeyVal.value;
-            }
-            if (o.includes("CFBundleItemDateAdded")) {
-              appData.appInstallDate = appKeyVal.value;
-            }
-            if (o.includes("CFBundleIdentifier")) {
-              appData.appIdentifier = appKeyVal.value;
-            }
-          }
-          else{
-            let appKeyVal = getKeyVal(o);
-            if (appKeyVal.value) {
-              appData[appKeyVal.key] = appKeyVal.value;
-            }
+            // mdls keys
             if (o.includes("kMDItemDisplayName")) {
               appData.appName = appKeyVal.value;
             }
@@ -184,15 +197,13 @@ export function getAppData(appFileInfo: { data: Array<any>, isPlutil: boolean })
             if (o.includes("kMDItemCFBundleIdentifier")) {
               appData.appIdentifier = appKeyVal.value;
             }
-          }
-        }
-        );
+          });
       } catch (error) {
         // Return empty appData on error
       }
       return appData;
     };
-    return getAppInfoData(appFileInfo.data, appFileInfo.isPlutil);
+    return getAppInfoData(appFileInfo.appName);
   } catch (error) {
     return {};
   }

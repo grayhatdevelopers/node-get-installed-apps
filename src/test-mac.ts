@@ -6,7 +6,7 @@ async function testPlutil() {
   const testApps = ['/Applications/Safari.app'];
   
   try {
-    const result = getAppsFileInfo(testApps);
+    const result = await getAppsFileInfo(testApps);
     console.log('Plutil Test result:', result);
     
     // Basic assertions
@@ -30,7 +30,7 @@ async function testMdls() {
   const testApps = ['/Applications/Safari.app'];
   
   try {
-    const result = getAppsFileInfo(testApps);
+    const result = await getAppsFileInfo(testApps);
     console.log('Mdls Test result:', result);
     
     // Basic assertions
@@ -54,7 +54,7 @@ async function testMdlsFailureFallbackToPlutil() {
   const testApps = ['/Applications/activitywatch.app']; // Note: lowercase 'a', actual is 'ActivityWatch.app'
   
   try {
-    const result = getAppsFileInfo(testApps);
+    const result = await getAppsFileInfo(testApps);
     console.log('Mdls Failure Fallback Test result:', result);
     
     // Expect mdls to fail, fallback to plutil to succeed, resulting in parsed data with isPlutil: true

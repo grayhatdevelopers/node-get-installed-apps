@@ -1,10 +1,10 @@
-import { exec, spawnSync } from "child_process";
+import { exec, spawn, spawnSync } from "child_process";
 
 export function getInstalledApps(directory:string) {
   return new Promise(async (resolve, reject) => {
     try {
       const directoryContents = await getDirectoryContents(directory);
-      const appsFileInfo = getAppsFileInfo(directoryContents);
+      const appsFileInfo = await getAppsFileInfo(directoryContents);
       resolve(
         appsFileInfo
           .map((appFileInfo) => getAppData(appFileInfo))
@@ -63,7 +63,7 @@ export function getAppsSubDirectory(
  * @param appsFile
  * @returns All apps fileInfo data (tries mdls first, falls back to plutil)
  */
-export function getAppsFileInfo(appsFile: readonly string[]): Array<any> {
+export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Array<any>> {
   const allAppsFileInfoList: any[] = [];
   try {
   const runMdlsShell = spawnSync("mdls", appsFile, {
@@ -95,46 +95,52 @@ export function getAppsFileInfo(appsFile: readonly string[]): Array<any> {
     // Fallback to plutil for all apps if mdls fails
     for (const app of appsFile) {
       try {
-        const runPlutilShell = spawnSync(
-          "plutil",
-          ["-p", `${app}/Contents/Info.plist`],
-          { encoding: "utf8" }
-        );
-
-        if (runPlutilShell.status === 0) {
-          const stdoutData = runPlutilShell.stdout ?? "";
-          const stdoutDataArrPlutils = stdoutData.split(/[(\r\n)\r\n]+/).filter((line) => line.length > 0);
+        const result = await new Promise<any>((resolve) => {
+          const runPlutilShell = spawn("plutil", ["-p", `${app}/Contents/Info.plist`]);
+          let stdoutData = "";
           
-          let appName = "";
-          let appVersion = "";
-          let appIdentifier = "";
-          
-          for (const line of stdoutDataArrPlutils) {
-            const match = line.match(/"([^"]+)"\s*=>\s*"([^"]+)"/);
-            if (match) {
-              const key = match[1];
-              const value = match[2];
-              
-              if (key === "CFBundleDisplayName" || (key === "CFBundleName" && !appName)) {
-                appName = value;
-              }
-              if (key === "CFBundleVersion") {
-                appVersion = value;
-              }
-              if (key === "CFBundleIdentifier") {
-                appIdentifier = value;
-              }
-            }
-          }
-          
-          allAppsFileInfoList.push({ 
-            appName,
-            appVersion,
-            appInstallDate: "",
-            appIdentifier
+          runPlutilShell.stdout.on("data", (data) => {
+            stdoutData += data.toString();
           });
+          
+          runPlutilShell.on("close", (code) => {
+            if (code === 0) {
+              const lines = stdoutData.split(/[(\r\n)\r\n]+/);
+              
+              let appName = "";
+              let appVersion = "";
+              let appIdentifier = "";
+              
+              for (const line of lines) {
+                const match = line.match(/"([^"]+)"\s*=>\s*"([^"]+)"/);
+                if (match) {
+                  const key = match[1];
+                  const value = match[2];
+                  
+                  if (key === "CFBundleDisplayName" || (key === "CFBundleName" && !appName)) {
+                    appName = value;
+                  }
+                  if (key === "CFBundleVersion") {
+                    appVersion = value;
+                  }
+                  if (key === "CFBundleIdentifier") {
+                    appIdentifier = value;
+                  }
+                }
+              }
+              
+              resolve({ appName, appVersion, appInstallDate: "", appIdentifier });
+            } else {
+              resolve(null);
+            }
+          });
+          
+          runPlutilShell.on("error", () => resolve(null));
+        });
+        
+        if (result) {
+          allAppsFileInfoList.push(result);
         }
-         
       } catch (err) {
         // plutil failed for this app, continue with next
       }

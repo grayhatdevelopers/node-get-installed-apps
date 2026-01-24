@@ -88,7 +88,6 @@ export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Arra
      });
       }
     } else {
-      // mdls failed, throw to trigger fallback
       throw new Error("mdls failed");
     }
   } catch (error) {
@@ -142,7 +141,8 @@ export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Arra
           allAppsFileInfoList.push(result);
         }
       } catch (err) {
-        // plutil failed for this app, continue with next
+        // plutil failed
+        console.log(`plutil failed for app: ${app}`, err);
       }
     }
   }

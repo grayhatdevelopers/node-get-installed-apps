@@ -137,7 +137,7 @@ export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Arra
               }
             }
 
-            resolve({ isPlutil: true, ...appData });
+            resolve(appData);
           } else {
             resolve(null);
           }
@@ -210,15 +210,19 @@ export function getAppData(appFileInfo: any) {
 
     if (appFileInfo.isMdls && appFileInfo.lines) {
       return getAppInfoData(appFileInfo.lines);
-    } else if (appFileInfo.isPlutil) {
-      return {
-        appName: appFileInfo.CFBundleDisplayName || appFileInfo.CFBundleName,
-        appVersion: appFileInfo.CFBundleShortVersionString || appFileInfo.CFBundleVersion,
-        appIdentifier: appFileInfo.CFBundleIdentifier,
-        appInstallDate: appFileInfo.appInstallDate
-      };
+    } else {
+      try {
+        return {
+          appName: appFileInfo.CFBundleDisplayName || appFileInfo.CFBundleName,
+          appVersion: appFileInfo.CFBundleShortVersionString || appFileInfo.CFBundleVersion,
+          appIdentifier: appFileInfo.CFBundleIdentifier,
+          appInstallDate: appFileInfo.appInstallDate
+        };
+      } catch (error) {
+        console.error("Error parsing plutil app data:", error);
+        return {};
+      }
     }
-    return {};
   } catch (error) {
     return {};
   }

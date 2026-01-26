@@ -1,5 +1,5 @@
 // Updated test-mac.ts with mdls test added
-import { getAppsFileInfo } from './mac';
+import { getAppsFileInfo, getInstalledApps } from './mac';
 
 async function testPlutil() {
   // Test with a known app directory, e.g., Safari
@@ -68,10 +68,31 @@ async function testMdlsFailureFallbackToPlutil() {
   }
 }
 
+async function testAllApps() {
+  try {
+    const allApps = await getInstalledApps('/Applications') as Array<{ path: string }>;
+    const result = await getAppsFileInfo(allApps.map(app => app.path));
+    console.log('All Apps Test result count:', result.length);
+    
+    // Basic assertion: should retrieve info for multiple apps
+    if (result.length > 10) {
+      console.log('Successfully retrieved info for multiple apps');
+    } else {
+      console.log('Unexpectedly low number of apps retrieved');
+    }
+  } catch (error) {
+    console.error('All Apps test failed:', error);
+  }
+}
+
 async function runTests() {
+  console.log('--- Running existing tests ---');
   await testPlutil();
   await testMdls();
   await testMdlsFailureFallbackToPlutil();
+  
+  console.log('\n--- Running new scan all apps test ---');
+  await testAllApps();
 }
 
 runTests();

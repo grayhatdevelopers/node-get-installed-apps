@@ -7,7 +7,10 @@ export function getInstalledApps(directory:string) {
       const appsFileInfo = await getAppsFileInfo(directoryContents);
       resolve(
         appsFileInfo
-          .map((appFileInfo) => getAppData(appFileInfo))
+          .map((appFileInfo, index) => {
+            const data = getAppData(appFileInfo);
+            return { ...data, path: directoryContents[index] };
+          })
           .filter((app) => app.appName)
       );
     } catch (error) {
@@ -66,83 +69,88 @@ export function getAppsSubDirectory(
 export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Array<any>> {
   const allAppsFileInfoList: any[] = [];
   try {
-  const runMdlsShell = spawnSync("mdls", appsFile, {
-    encoding: "utf8",
-  });    
+    const runMdlsShell = spawnSync("mdls", appsFile, {
+      encoding: "utf8",
+    });
     if (runMdlsShell.status === 0 && runMdlsShell.stdout) {
-  const stdoutData = runMdlsShell.stdout;
-  const stdoutDataArr = stdoutData.split(/[(\r\n)\r\n]+/);
-  const splitIndexArr: Array<any> = [];
-  for (let i = 0; i < stdoutDataArr.length; i++) {
-    if (stdoutDataArr[i].includes("kMDItemDisplayNameWithExtensions")) {
-      splitIndexArr.push(i);
-    }
-  }
-  for (let j = 0; j < splitIndexArr.length; j++) {
-    const appData = stdoutDataArr.slice(splitIndexArr[j], splitIndexArr[j + 1]);
-    allAppsFileInfoList.push({
-      appName: appData as string[],
-      appVersion: appData as string[],
-      appInstallDate: appData as string[],
-      appIdentifier: appData as string[]
-     });
+      const stdoutData = runMdlsShell.stdout;
+      const stdoutDataArr = stdoutData.split(/[(\r\n)\r\n]+/);
+      const splitIndexArr: Array<number> = [];
+      
+      // Find indices where each app's mdls output begins
+      for (let i = 0; i < stdoutDataArr.length; i++) {
+        if (stdoutDataArr[i].includes("kMDItemDisplayNameWithExtensions")) {
+          splitIndexArr.push(i);
+        }
       }
+      
+      // If no valid mdls data found, fall back to plutil
+      if (splitIndexArr.length === 0) {
+        throw new Error("mdls returned no valid data");
+      }
+      
+      // Split the output into per-app chunks and parse each
+      for (let i = 0; i < splitIndexArr.length; i++) {
+        const startIdx = splitIndexArr[i];
+        const endIdx = i + 1 < splitIndexArr.length ? splitIndexArr[i + 1] : stdoutDataArr.length;
+        const appLines = stdoutDataArr.slice(startIdx, endIdx).filter((line: string) => line.trim());
+        
+        if (appLines.length > 0) {
+          allAppsFileInfoList.push({ isMdls: true, lines: appLines });
+        }
+      }
+      
+      return allAppsFileInfoList;
     } else {
       throw new Error("mdls failed");
     }
   } catch (error) {
     // Fallback to plutil for all apps if mdls fails
-    for (const app of appsFile) {
-      try {
-        const result = await new Promise<any>((resolve) => {
-          const runPlutilShell = spawn("plutil", ["-p", `${app}/Contents/Info.plist`]);
-          let stdoutData = "";
-          
-          runPlutilShell.stdout.on("data", (data) => {
-            stdoutData += data.toString();
-          });
-          
-          runPlutilShell.on("close", (code) => {
-            if (code === 0) {
-              const lines = stdoutData.split(/[(\r\n)\r\n]+/);
-              
-              let appName = "";
-              let appVersion = "";
-              let appIdentifier = "";
-              
-              for (const line of lines) {
-                const match = line.match(/"([^"]+)"\s*=>\s*"([^"]+)"/);
-                if (match) {
-                  const key = match[1];
-                  const value = match[2];
-                  
-                  if (key === "CFBundleDisplayName" || (key === "CFBundleName" && !appName)) {
-                    appName = value;
-                  }
-                  if (key === "CFBundleVersion") {
-                    appVersion = value;
-                  }
-                  if (key === "CFBundleIdentifier") {
-                    appIdentifier = value;
-                  }
-                }
-              }
-              
-              resolve({ appName, appVersion, appInstallDate: "", appIdentifier });
-            } else {
-              resolve(null);
-            }
-          });
-          
-          runPlutilShell.on("error", () => resolve(null));
+    // Run all spawns in parallel and collect results without failing the whole batch
+    const plutilPromises = appsFile.map((app) => {
+      return new Promise<any>((resolve) => {
+        const runPlutilShell = spawn("plutil", ["-p", `${app}/Contents/Info.plist`]);
+        let stdoutData = "";
+
+        runPlutilShell.stdout.on("data", (data) => {
+          stdoutData += data.toString();
         });
-        
-        if (result) {
-          allAppsFileInfoList.push(result);
-        }
-      } catch (err) {
-        // plutil failed
-        console.log(`plutil failed for app: ${app}`, err);
+
+        runPlutilShell.on("close", (code) => {
+          if (code === 0) {
+            const lines = stdoutData.split(/[(\r\n)\r\n]+/);
+
+            const appData: Record<string, any> = {};
+
+            for (const line of lines) {
+              // Match key-value pairs: "Key" => "Value" or "Key" => Value
+              const match = line.match(/"([^"]+)"\s*=>\s*(.+)/);
+              if (match) {
+                const key = match[1];
+                let value = match[2].trim();
+                
+                if (value.startsWith('"') && value.endsWith('"')) {
+                  value = value.slice(1, -1);
+                }
+                
+                appData[key] = value;
+              }
+            }
+
+            resolve({ isPlutil: true, ...appData });
+          } else {
+            resolve(null);
+          }
+        });
+
+        runPlutilShell.on("error", () => resolve(null));
+      });
+    });
+
+    const results = await Promise.all(plutilPromises);
+    for (const r of results) {
+      if (r) {
+        allAppsFileInfoList.push(r);
       }
     }
   }
@@ -155,20 +163,10 @@ export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Arra
  * @param appFileInfo 
  * @returns One app data
  */
-export function getAppData(appFileInfo: { appName: string[], appVersion: string[], appInstallDate: string[], appIdentifier: string[] }) {
+export function getAppData(appFileInfo: any) {
   try {
     const getKeyVal = (lineData: string) => {
       try {
-        // Try plutil format: '  "CFBundleName" => "ActivityWatch"'
-        const plutilMatch = lineData.match(/"([^"]+)"\s*=>\s*(.+)/);
-        if (plutilMatch) {
-          const key = plutilMatch[1];
-          let value = plutilMatch[2].trim();
-          if (value.startsWith('"') && value.endsWith('"')) {
-            value = value.slice(1, -1);
-          }
-          return { key, value };
-        }
         // Try mdls format: 'kMDItemDisplayName = "App Name"'
         const lineDataArr = lineData.split("=");
         return {
@@ -209,7 +207,18 @@ export function getAppData(appFileInfo: { appName: string[], appVersion: string[
       }
       return appData;
     };
-    return getAppInfoData(appFileInfo.appName);
+
+    if (appFileInfo.isMdls && appFileInfo.lines) {
+      return getAppInfoData(appFileInfo.lines);
+    } else if (appFileInfo.isPlutil) {
+      return {
+        appName: appFileInfo.CFBundleDisplayName || appFileInfo.CFBundleName,
+        appVersion: appFileInfo.CFBundleShortVersionString || appFileInfo.CFBundleVersion,
+        appIdentifier: appFileInfo.CFBundleIdentifier,
+        appInstallDate: appFileInfo.appInstallDate
+      };
+    }
+    return {};
   } catch (error) {
     return {};
   }

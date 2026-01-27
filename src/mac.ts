@@ -1,4 +1,4 @@
-import { exec, spawnSync } from "child_process";
+import { exec, spawn, spawnSync } from "child_process";
 
 export function getInstalledApps(directory:string) {
   return new Promise(async (resolve, reject) => {
@@ -7,7 +7,10 @@ export function getInstalledApps(directory:string) {
       const appsFileInfo = await getAppsFileInfo(directoryContents);
       resolve(
         appsFileInfo
-          .map((appFileInfo) => getAppData(appFileInfo))
+          .map((appFileInfo, index) => {
+            const data = getAppData(appFileInfo);
+            return { ...data, path: directoryContents[index] };
+          })
           .filter((app) => app.appName)
       );
     } catch (error) {
@@ -61,66 +64,166 @@ export function getAppsSubDirectory(
 /**
  * getAppsFileInfo
  * @param appsFile
- * @returns All apps fileInfo data
+ * @returns All apps fileInfo data (tries mdls first, falls back to plutil)
  */
-export function getAppsFileInfo(appsFile: readonly string[]): Array<any> {
-  const runMdlsShell = spawnSync("mdls", appsFile, {
-    encoding: "utf8",
-  });
-  const stdoutData = runMdlsShell.stdout;
-  const allAppsFileInfoList: Array<any> = [];
-  const stdoutDataArr = stdoutData.split(/[(\r\n)\r\n]+/);
-  const splitIndexArr: Array<any> = [];
-  for (let i = 0; i < stdoutDataArr.length; i++) {
-    if (stdoutDataArr[i].includes("_kMDItemDisplayNameWithExtensions")) {
-      splitIndexArr.push(i);
+export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Array<any>> {
+  const allAppsFileInfoList: any[] = [];
+  try {
+    const runMdlsShell = spawnSync("mdls", appsFile, {
+      encoding: "utf8",
+    });
+    if (runMdlsShell.status === 0 && runMdlsShell.stdout) {
+      const stdoutData = runMdlsShell.stdout;
+      const stdoutDataArr = stdoutData.split(/[(\r\n)\r\n]+/);
+      const splitIndexArr: Array<number> = [];
+      
+      // Find indices where each app's mdls output begins
+      for (let i = 0; i < stdoutDataArr.length; i++) {
+        if (stdoutDataArr[i].includes("kMDItemDisplayNameWithExtensions")) {
+          splitIndexArr.push(i);
+        }
+      }
+      
+      // If no valid mdls data found, fall back to plutil
+      if (splitIndexArr.length === 0) {
+        throw new Error("mdls returned no valid data");
+      }
+      
+      // Split the output into per-app chunks and parse each
+      for (let i = 0; i < splitIndexArr.length; i++) {
+        const startIdx = splitIndexArr[i];
+        const endIdx = i + 1 < splitIndexArr.length ? splitIndexArr[i + 1] : stdoutDataArr.length;
+        const appLines = stdoutDataArr.slice(startIdx, endIdx).filter((line: string) => line.trim());
+        
+        if (appLines.length > 0) {
+          allAppsFileInfoList.push({ isMdls: true, lines: appLines });
+        }
+      }
+      
+      return allAppsFileInfoList;
+    } else {
+      throw new Error("mdls failed");
+    }
+  } catch (error) {
+    // Fallback to plutil for all apps if mdls fails
+    // Run all spawns in parallel and collect results without failing the whole batch
+    const plutilPromises = appsFile.map((app) => {
+      return new Promise<any>((resolve) => {
+        const runPlutilShell = spawn("plutil", ["-p", `${app}/Contents/Info.plist`]);
+        let stdoutData = "";
+
+        runPlutilShell.stdout.on("data", (data) => {
+          stdoutData += data.toString();
+        });
+
+        runPlutilShell.on("close", (code) => {
+          if (code === 0) {
+            const lines = stdoutData.split(/[(\r\n)\r\n]+/);
+
+            const appData: Record<string, any> = {};
+
+            for (const line of lines) {
+              // Match key-value pairs: "Key" => "Value" or "Key" => Value
+              const match = line.match(/"([^"]+)"\s*=>\s*(.+)/);
+              if (match) {
+                const key = match[1];
+                let value = match[2].trim();
+                
+                if (value.startsWith('"') && value.endsWith('"')) {
+                  value = value.slice(1, -1);
+                }
+                
+                appData[key] = value;
+              }
+            }
+
+            resolve(appData);
+          } else {
+            resolve(null);
+          }
+        });
+
+        runPlutilShell.on("error", () => resolve(null));
+      });
+    });
+
+    const results = await Promise.all(plutilPromises);
+    for (const r of results) {
+      if (r) {
+        allAppsFileInfoList.push(r);
+      }
     }
   }
-  for (let j = 0; j < splitIndexArr.length; j++) {
-    allAppsFileInfoList.push(
-      stdoutDataArr.slice(splitIndexArr[j], splitIndexArr[j + 1])
-    );
-  }
+
   return allAppsFileInfoList;
 }
 
 /**
  * getAppData
- * @param singleAppFileInfo
+ * @param appFileInfo 
  * @returns One app data
  */
-export function getAppData(singleAppFileInfo: Array<any>) {
-  const getKeyVal = (lineData: string) => {
-    const lineDataArr = lineData.split("=");
-    return {
-      key: lineDataArr[0].trim().replace(/\"/g, ""),
-      value: lineDataArr[1] ? lineDataArr[1].trim().replace(/\"/g, "") : "",
+export function getAppData(appFileInfo: any) {
+  try {
+    const getKeyVal = (lineData: string) => {
+      try {
+        // Try mdls format: 'kMDItemDisplayName = "App Name"'
+        const lineDataArr = lineData.split("=");
+        return {
+          key: lineDataArr[0].trim().replace(/\"/g, ""),
+          value: lineDataArr[1] ? lineDataArr[1].trim().replace(/\"/g, "") : "",
+        };
+      } catch (error) {
+        return { key: "", value: "" };
+      }
     };
-  };
 
-  const getAppInfoData = (appArr: Array<any>) => {
-    let appData: any = {};
-    appArr
-      .filter((i: any) => i)
-      .forEach((o: any) => {
-        let appKeyVal = getKeyVal(o);
-        if (appKeyVal.value) {
-          appData[appKeyVal.key] = appKeyVal.value;
-        }
-        if (o.includes("kMDItemDisplayName")) {
-          appData.appName = appKeyVal.value;
-        }
-        if (o.includes("kMDItemVersion")) {
-          appData.appVersion = appKeyVal.value;
-        }
-        if (o.includes("kMDItemDateAdded")) {
-          appData.appInstallDate = appKeyVal.value;
-        }
-        if (o.includes("kMDItemCFBundleIdentifier")) {
-          appData.appIdentifier = appKeyVal.value;
-        }
-      });
-    return appData;
-  };
-  return getAppInfoData(singleAppFileInfo);
+    const getAppInfoData = (appArr: Array<any>) => {
+      let appData: any = {};
+      try {
+        appArr
+          .filter((i: any) => i)
+          .forEach((o: any) => {
+            let appKeyVal = getKeyVal(o);
+            if (appKeyVal.value) {
+              appData[appKeyVal.key] = appKeyVal.value;
+            }
+            // mdls keys
+            if (o.includes("kMDItemDisplayName")) {
+              appData.appName = appKeyVal.value;
+            }
+            if (o.includes("kMDItemVersion")) {
+              appData.appVersion = appKeyVal.value;
+            }
+            if (o.includes("kMDItemDateAdded")) {
+              appData.appInstallDate = appKeyVal.value;
+            }
+            if (o.includes("kMDItemCFBundleIdentifier")) {
+              appData.appIdentifier = appKeyVal.value;
+            }
+          });
+      } catch (error) {
+        // Return empty appData on error
+      }
+      return appData;
+    };
+
+    if (appFileInfo.isMdls && appFileInfo.lines) {
+      return getAppInfoData(appFileInfo.lines);
+    } else {
+      try {
+        return {
+          appName: appFileInfo.CFBundleDisplayName || appFileInfo.CFBundleName,
+          appVersion: appFileInfo.CFBundleShortVersionString || appFileInfo.CFBundleVersion,
+          appIdentifier: appFileInfo.CFBundleIdentifier,
+          appInstallDate: appFileInfo.appInstallDate
+        };
+      } catch (error) {
+        console.error("Error parsing plutil app data:", error);
+        return {};
+      }
+    }
+  } catch (error) {
+    return {};
+  }
 }

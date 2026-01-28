@@ -1,5 +1,5 @@
 import { Registry } from "./utils/registry";
-import { BaseReturnData } from "./base-return-data";
+import { BaseReturnData } from "./types";
 export function getInstalledApps() {
   return new Promise(async (resolve, reject) => {
     let HKLM_SOFTWARE_Microsoft: any = [];

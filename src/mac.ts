@@ -1,5 +1,5 @@
 import { exec, spawn, spawnSync } from "child_process";
-import { BaseReturnData, MacMdlsMetadata, MacPlutilMetadata } from "./base-return-data";
+import { BaseReturnData, MacMdlsMetadata, MacPlutilMetadata } from "./types";
 
 export function getInstalledApps(directory:string) {
   return new Promise(async (resolve, reject) => {

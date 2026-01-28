@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { BaseReturnData,LinuxPackageMetadata } from "./base-return-data";
+import { BaseReturnData,LinuxPackageMetadata } from "./types";
 
 
 export async function getInstalledApps(): Promise<BaseReturnData[]> {

@@ -236,17 +236,19 @@ export function getAppData(appFileInfo: any) {
         const metadata: MacPlutilMetadata = {
           appData: appFileInfo
         };
-        return {
-          appName: appFileInfo.CFBundleDisplayName || appFileInfo.CFBundleName ,
+        const appreturn: BaseReturnData = {
+          appName: appFileInfo.CFBundleDisplayName || appFileInfo.CFBundleName || appFileInfo.CFBundleExecutable,
           appVersion: appFileInfo.CFBundleShortVersionString || appFileInfo.CFBundleVersion ,
           appIdentifier: appFileInfo.CFBundleIdentifier ,
           platform: "darwin",
-          appInstallDate: appFileInfo.appInstallDate ,
           metadata: metadata
-        };
+        }
+        return appreturn;
       } catch (error) {
         console.error("Error parsing plutil app data:", error);
-        return {};
+        return {
+          appName: null,
+        };
       }
     }
   } catch (error) {

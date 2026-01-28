@@ -213,6 +213,7 @@ export function getAppData(appFileInfo: any) {
           appIdentifier: appData.appIdentifier || null,
           platform: "darwin",
           appVersion: appData.appVersion || null,
+          method: "mdls",
           metadata: metadata,
         };
         return appreturn;
@@ -241,6 +242,7 @@ export function getAppData(appFileInfo: any) {
           appVersion: appFileInfo.CFBundleShortVersionString || appFileInfo.CFBundleVersion ,
           appIdentifier: appFileInfo.CFBundleIdentifier ,
           platform: "darwin",
+          method: "plutil",
           metadata: metadata
         }
         return appreturn;

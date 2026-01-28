@@ -52,6 +52,7 @@ export async function getInstalledApps(): Promise<BaseReturnData[]> {
         appIdentifier: pkg,
         platform: "linux",
         appVersion: version || null,
+        method: "dpkg",
         metadata: metadata,
       };
 
@@ -99,6 +100,7 @@ export async function getInstalledApps(): Promise<BaseReturnData[]> {
         platform: "linux",
         appVersion: parts[1] || null,
         metadata: metadata,
+        method: "snap",
       };
 
       apps.push(appreturn);
@@ -131,6 +133,7 @@ export async function getInstalledApps(): Promise<BaseReturnData[]> {
         platform: "linux",
         appVersion: version || null,
         metadata,
+        method: "flatpak",
       };
 
       apps.push(appreturn);

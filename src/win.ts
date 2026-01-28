@@ -118,7 +118,8 @@ export function getAppData(appKey) {
           appIdentifier: app.appIdentifier || null,
           platform: "win32",
           appVersion: app.appVersion || null,
-          metadata: app
+          metadata: app,
+          method: "registry",
         };
         resolve(appreturn);
       });

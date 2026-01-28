@@ -1,4 +1,5 @@
 import { exec, spawn, spawnSync } from "child_process";
+import { BaseReturnData, MacMdlsMetadata, MacPlutilMetadata } from "./base-return-data";
 
 export function getInstalledApps(directory:string) {
   return new Promise(async (resolve, reject) => {
@@ -180,6 +181,7 @@ export function getAppData(appFileInfo: any) {
 
     const getAppInfoData = (appArr: Array<any>) => {
       let appData: any = {};
+      let appreturn: BaseReturnData []=[];
       try {
         appArr
           .filter((i: any) => i)
@@ -202,21 +204,45 @@ export function getAppData(appFileInfo: any) {
               appData.appIdentifier = appKeyVal.value;
             }
           });
+        
+        let metadata: MacMdlsMetadata = {
+          appData
+        };
+        const appreturn: BaseReturnData = {
+          appName: appData.appName || null,
+          appIdentifier: appData.appIdentifier || null,
+          platform: "darwin",
+          appVersion: appData.appVersion || null,
+          metadata: metadata,
+        };
+        return appreturn;
+
       } catch (error) {
         // Return empty appData on error
-      }
-      return appData;
+        return {
+          appName: null,
+          appIdentifier: null,
+          platform: "darwin",
+          appVersion: null,
+          metadata: {},
+        };
+      }      
     };
 
     if (appFileInfo.isMdls && appFileInfo.lines) {
       return getAppInfoData(appFileInfo.lines);
     } else {
       try {
+        const metadata: MacPlutilMetadata = {
+          appData: appFileInfo
+        };
         return {
-          appName: appFileInfo.CFBundleDisplayName || appFileInfo.CFBundleName,
-          appVersion: appFileInfo.CFBundleShortVersionString || appFileInfo.CFBundleVersion,
-          appIdentifier: appFileInfo.CFBundleIdentifier,
-          appInstallDate: appFileInfo.appInstallDate
+          appName: appFileInfo.CFBundleDisplayName || appFileInfo.CFBundleName ,
+          appVersion: appFileInfo.CFBundleShortVersionString || appFileInfo.CFBundleVersion ,
+          appIdentifier: appFileInfo.CFBundleIdentifier ,
+          platform: "darwin",
+          appInstallDate: appFileInfo.appInstallDate ,
+          metadata: metadata
         };
       } catch (error) {
         console.error("Error parsing plutil app data:", error);

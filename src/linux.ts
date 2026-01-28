@@ -1,26 +1,9 @@
 import { execSync } from "child_process";
+import { BaseReturnData,LinuxPackageMetadata } from "./base-return-data";
 
-export type LinuxInstalledApp = {
-  name: string;
-  packageId: string;
-  version: string | null;
-  type: "dpkg" | "snap" | "flatpak";
 
-  repository?: string | null;
-  architecture?: string | null;
-  maintainer?: string | null;
-  license?: string | null;
-  section?: string | null;
-  description?: string | null;
-  installed_size?: number | null;
-  install_date?: string | null;
-
-  is_system_package?: number;
-  is_auto_installed?: number;
-};
-
-export async function getInstalledApps(): Promise<LinuxInstalledApp[]> {
-  const apps: LinuxInstalledApp[] = [];
+export async function getInstalledApps(): Promise<BaseReturnData[]> {
+  const apps: BaseReturnData[] = [];
   const seen = new Set<string>();
 
   /* -------------------- DPKG / APT -------------------- */
@@ -29,13 +12,13 @@ export async function getInstalledApps(): Promise<LinuxInstalledApp[]> {
       `dpkg-query -W -f='${"${Package}"}|${"${Version}"}|${"${Architecture}"}|${"${Maintainer}"}|${"${Section}"}|${"${Installed-Size}"}|${"${binary:Summary}"}|${"${db:Status-Abbrev}"}\n'`,
       { encoding: "utf8" }
     );
-    
+
     for (const line of output.split("\n")) {
       if (!line.trim()) continue;
-    
+
       const parts = line.split("|");
       if (parts.length < 8) continue;
-    
+
       const [
         pkg,
         version,
@@ -46,14 +29,11 @@ export async function getInstalledApps(): Promise<LinuxInstalledApp[]> {
         summary,
         status,
       ] = parts;
-    
+
       if (!pkg || seen.has(pkg)) continue;
       seen.add(pkg);
-    
-      apps.push({
-        name: pkg,
-        packageId: pkg,
-        version: version || null,
+
+      const metadata: LinuxPackageMetadata = {
         type: "dpkg",
         architecture: arch || null,
         maintainer: maintainer || null,
@@ -65,8 +45,18 @@ export async function getInstalledApps(): Promise<LinuxInstalledApp[]> {
         install_date: null,
         is_system_package: section?.startsWith("libs") || section?.startsWith("admin") ? 1 : 0,
         is_auto_installed: status?.includes("iA") ? 1 : 0,
-      });
-    }    
+      };
+
+      const appreturn: BaseReturnData = {
+        appName: pkg,
+        appIdentifier: pkg,
+        platform: "linux",
+        appVersion: version || null,
+        metadata: metadata,
+      };
+
+      apps.push(appreturn);
+    }
   } catch {}
 
   /* -------------------- SNAP -------------------- */
@@ -95,22 +85,23 @@ export async function getInstalledApps(): Promise<LinuxInstalledApp[]> {
         license = licenseMatch?.[1] ?? null;
       } catch {}
 
-      apps.push({
-        name,
-        packageId: name,
-        version: parts[1] || null,
+      const metadata: LinuxPackageMetadata = {
         type: "snap",
-        repository: "snapcraft",
-        architecture: parts[6] || null,
-        maintainer: null,
-        license,
+        repository: parts[3] || null,
+        architecture: parts[2] || null,
+        license: license,
         section: "snap",
-        description,
-        installed_size: null,
-        install_date: null,
-        is_system_package: 0,
-        is_auto_installed: 0,
-      });
+        description: description,
+      };
+      const appreturn: BaseReturnData = {
+        appName: name,
+        appIdentifier: name,
+        platform: "linux",
+        appVersion: parts[1] || null,
+        metadata: metadata,
+      };
+
+      apps.push(appreturn);
     }
   } catch {}
 
@@ -128,22 +119,21 @@ export async function getInstalledApps(): Promise<LinuxInstalledApp[]> {
       if (!id || seen.has(id)) continue;
       seen.add(id);
 
-      apps.push({
-        name: id.split(".").pop() ?? id,
-        packageId: id,
-        version: version || null,
+      const metadata: LinuxPackageMetadata = {
         type: "flatpak",
         repository: origin || null,
         architecture: arch || null,
-        maintainer: null,
-        license: null,
         section: "flatpak",
-        description: null,
-        installed_size: null,
-        install_date: null,
-        is_system_package: 0,
-        is_auto_installed: 0,
-      });
+      };
+      const appreturn: BaseReturnData = {
+        appName: id.split(".").pop() || null,
+        appIdentifier: id,
+        platform: "linux",
+        appVersion: version || null,
+        metadata,
+      };
+
+      apps.push(appreturn);
     }
   } catch {}
 

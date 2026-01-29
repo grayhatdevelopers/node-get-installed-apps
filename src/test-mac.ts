@@ -70,12 +70,11 @@ async function testMdlsFailureFallbackToPlutil() {
 
 async function testAllApps() {
   try {
-    const allApps = await getInstalledApps('/Applications') as Array<{ path: string }>;
-    const result = await getAppsFileInfo(allApps.map(app => app.path));
-    console.log('All Apps Test result count:', result.length);
+    const allApps = await getInstalledApps('/Applications') as any[];
+    console.log('All Apps Test result count:', allApps.length);
     
     // Basic assertion: should retrieve info for multiple apps
-    if (result.length > 10) {
+    if (allApps.length > 10) {
       console.log('Successfully retrieved info for multiple apps');
     } else {
       console.log('Unexpectedly low number of apps retrieved');
@@ -84,7 +83,6 @@ async function testAllApps() {
     console.error('All Apps test failed:', error);
   }
 }
-
 async function runTests() {
   console.log('--- Running existing tests ---');
   await testPlutil();

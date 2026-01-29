@@ -166,7 +166,7 @@ export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Arra
  * @param lines - array of lines from `mdls` command
  * @returns BaseReturnData
  */
-export function parseMdlsData(lines: string[]): ReturnData<"darwin", "mdls">[] {
+export function parseMdlsData(lines: string[]): ReturnData<"darwin", "mdls"> {
   const getKeyVal = (lineData: string) => {
     try {
       // mdls format: 'kMDItemDisplayName = "App Name"'
@@ -196,19 +196,17 @@ export function parseMdlsData(lines: string[]): ReturnData<"darwin", "mdls">[] {
         if (key === "kMDItemVersion") appData.appVersion = value;
         if (key === "kMDItemDateAdded") appData.appInstallDate = value;
         if (key === "kMDItemCFBundleIdentifier") appData.appIdentifier = value;
-        
-        const metadata: MacMdlsMetadata = { ...appData };
-        const appReturn: ReturnData<"darwin", "mdls"> = {
-          appName: appData.appName || null,
-          appIdentifier: appData.appIdentifier || null,
-          platform: "darwin",
-          appVersion: appData.appVersion || null,
-          method: "mdls",
-          metadata,
-        };
-        
       });
 
+    const metadata: MacMdlsMetadata = { ...appData };
+    const appReturn: ReturnData<"darwin", "mdls"> = {
+      appName: appData.appName || null,
+      appIdentifier: appData.appIdentifier || null,
+      platform: "darwin",
+      appVersion: appData.appVersion || null,
+      method: "mdls",
+      metadata,
+    };
 
     return appReturn;
   } catch {
@@ -217,6 +215,7 @@ export function parseMdlsData(lines: string[]): ReturnData<"darwin", "mdls">[] {
       appIdentifier: null,
       platform: "darwin",
       appVersion: null,
+      method: "mdls",
       metadata: {},
     };
   }
@@ -269,9 +268,9 @@ export function getAppData(appFileInfo: any) {
           });
         
         let metadata: MacMdlsMetadata = {
-          appData
+          ...appData
         };
-        const appreturn: BaseReturnData = {
+        const appreturn: ReturnData<"darwin", "mdls"> = {
           appName: appData.appName || null,
           appIdentifier: appData.appIdentifier || null,
           platform: "darwin",
@@ -283,13 +282,7 @@ export function getAppData(appFileInfo: any) {
 
       } catch (error) {
         // Return empty appData on error
-        return {
-          appName: null,
-          appIdentifier: null,
-          platform: "darwin",
-          appVersion: null,
-          metadata: {},
-        };
+        return {};
       }      
     };
 
@@ -297,23 +290,19 @@ export function getAppData(appFileInfo: any) {
       return getAppInfoData(appFileInfo.lines);
     } else {
       try {
-        const metadata: MacPlutilMetadata = {
-          appData: appFileInfo
-        };
-        const appreturn: BaseReturnData = {
+        const metadata: MacPlutilMetadata = {...appFileInfo};
+        const appreturn: ReturnData<"darwin", "plutil">  = {
           appName: appFileInfo.CFBundleDisplayName || appFileInfo.CFBundleName || appFileInfo.CFBundleExecutable,
           appVersion: appFileInfo.CFBundleShortVersionString || appFileInfo.CFBundleVersion ,
           appIdentifier: appFileInfo.CFBundleIdentifier ,
           platform: "darwin",
           method: "plutil",
-          metadata: metadata
-        }
+          metadata: metadata,
+        };
         return appreturn;
       } catch (error) {
         console.error("Error parsing plutil app data:", error);
-        return {
-          appName: null,
-        };
+        return {};
       }
     }
   } catch (error) {

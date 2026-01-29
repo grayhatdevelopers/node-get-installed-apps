@@ -10,7 +10,10 @@ export function getInstalledApps(directory:string) {
         appsFileInfo
           .map((appFileInfo, index) => {
             const data = getAppData(appFileInfo);
-            return { ...data, path: directoryContents[index] };
+            return {
+              ...data,
+              installPath: directoryContents[index],
+            };
           })
           .filter((app) => app.appName)
       );
@@ -77,30 +80,30 @@ export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Arra
       const stdoutData = runMdlsShell.stdout;
       const stdoutDataArr = stdoutData.split(/[(\r\n)\r\n]+/);
       const splitIndexArr: Array<number> = [];
-      
+
       // Find indices where each app's mdls output begins
       for (let i = 0; i < stdoutDataArr.length; i++) {
         if (stdoutDataArr[i].includes("kMDItemDisplayNameWithExtensions")) {
           splitIndexArr.push(i);
         }
       }
-      
+
       // If no valid mdls data found, fall back to plutil
       if (splitIndexArr.length === 0) {
         throw new Error("mdls returned no valid data");
       }
-      
+
       // Split the output into per-app chunks and parse each
       for (let i = 0; i < splitIndexArr.length; i++) {
         const startIdx = splitIndexArr[i];
         const endIdx = i + 1 < splitIndexArr.length ? splitIndexArr[i + 1] : stdoutDataArr.length;
         const appLines = stdoutDataArr.slice(startIdx, endIdx).filter((line: string) => line.trim());
-        
+
         if (appLines.length > 0) {
           allAppsFileInfoList.push({ isMdls: true, lines: appLines });
         }
       }
-      
+
       return allAppsFileInfoList;
     } else {
       throw new Error("mdls failed");
@@ -129,11 +132,11 @@ export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Arra
               if (match) {
                 const key = match[1];
                 let value = match[2].trim();
-                
+
                 if (value.startsWith('"') && value.endsWith('"')) {
                   value = value.slice(1, -1);
                 }
-                
+
                 appData[key] = value;
               }
             }
@@ -161,7 +164,7 @@ export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Arra
 
 /**
  * getAppData
- * @param appFileInfo 
+ * @param appFileInfo
  * @returns One app data
  */
 export function getAppData(appFileInfo: any) {
@@ -204,7 +207,7 @@ export function getAppData(appFileInfo: any) {
               appData.appIdentifier = appKeyVal.value;
             }
           });
-        
+
         let metadata: MacMdlsMetadata = {
           appData
         };
@@ -215,6 +218,7 @@ export function getAppData(appFileInfo: any) {
           appVersion: appData.appVersion || null,
           method: "mdls",
           metadata: metadata,
+          installPath: "", // Set by getInstalledApps
         };
         return appreturn;
 
@@ -226,8 +230,9 @@ export function getAppData(appFileInfo: any) {
           platform: "darwin",
           appVersion: null,
           metadata: {},
+          installPath: "",
         };
-      }      
+      }
     };
 
     if (appFileInfo.isMdls && appFileInfo.lines) {
@@ -243,6 +248,7 @@ export function getAppData(appFileInfo: any) {
           appIdentifier: appFileInfo.CFBundleIdentifier ,
           platform: "darwin",
           method: "plutil",
+          installPath: "", // Set by getInstalledApps
           metadata: metadata
         }
         return appreturn;

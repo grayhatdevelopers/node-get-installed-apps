@@ -7,58 +7,69 @@ export async function getInstalledApps(): Promise<BaseReturnData[]> {
   const seen = new Set<string>();
 
   /* -------------------- DPKG / APT -------------------- */
-  try {
-    const output = execSync(
-      `dpkg-query -W -f='${"${Package}"}|${"${Version}"}|${"${Architecture}"}|${"${Maintainer}"}|${"${Section}"}|${"${Installed-Size}"}|${"${binary:Summary}"}|${"${db:Status-Abbrev}"}\n'`,
-      { encoding: "utf8" }
-    );
+try {
+  const output = execSync(
+    `dpkg-query -W -f='${"${Package}"}|${"${Version}"}|${"${Architecture}"}|${"${Maintainer}"}|${"${Section}"}|${"${Installed-Size}"}|${"${binary:Summary}"}|${"${db:Status-Abbrev}"}\n'`,
+    { encoding: "utf8" }
+  );
+  
+  for (const line of output.split("\n")) {
+    if (!line.trim()) continue;
 
-    for (const line of output.split("\n")) {
-      if (!line.trim()) continue;
+    const parts = line.split("|");
+    if (parts.length < 8) continue;
 
-      const parts = line.split("|");
-      if (parts.length < 8) continue;
+    const [
+      pkg,
+      version,
+      arch,
+      maintainer,
+      section,
+      size,
+      summary,
+      status
+    ] = parts;
 
-      const [
-        pkg,
-        version,
-        arch,
-        maintainer,
-        section,
-        size,
-        summary,
-        status,
-      ] = parts;
+    if (!pkg || seen.has(pkg)) continue;
+    seen.add(pkg);
 
-      if (!pkg || seen.has(pkg)) continue;
-      seen.add(pkg);
-
-      const metadata: LinuxPackageMetadata = {
-        type: "dpkg",
-        architecture: arch || null,
-        maintainer: maintainer || null,
-        section: section || null,
-        description: summary || null,
-        installed_size: size ? Number(size) * 1024 : null,
-        repository: null,
-        license: null,
-        install_date: null,
-        is_system_package: section?.startsWith("libs") || section?.startsWith("admin") ? 1 : 0,
-        is_auto_installed: status?.includes("iA") ? 1 : 0,
-      };
-
-      const appreturn: BaseReturnData = {
-        appName: pkg,
-        appIdentifier: pkg,
-        platform: "linux",
-        appVersion: version || null,
-        method: "dpkg",
-        metadata: metadata,
-      };
-
-      apps.push(appreturn);
+   let installPath = "";
+    try {
+      installPath = execSync(
+        `dpkg-query -L ${pkg} | grep -m 1 '^/opt/.*\\.desktop$' | xargs -r grep -m 1 '^Exec=' | cut -d'=' -f2-`,
+        { encoding: "utf8" }
+      ).trim();
+    } catch {
+      installPath = "";
     }
-  } catch {}
+
+    const metadata: LinuxPackageMetadata = {
+      type: "dpkg",
+      architecture: arch || null,
+      maintainer: maintainer || null,
+      section: section || null,
+      description: summary || null,
+      installed_size: size ? Number(size) * 1024 : null,
+      repository: null,
+      license: null,
+      install_date: null,
+      is_system_package: section?.startsWith("libs") || section?.startsWith("admin") ? 1 : 0,
+      is_auto_installed: status?.includes("iA") ? 1 : 0,
+    };
+
+    const appreturn: BaseReturnData = {
+      appName: pkg,
+      appIdentifier: pkg,
+      platform: "linux",
+      appVersion: version || null,
+      method: "dpkg",
+      metadata: metadata,
+      installPath: installPath || "",
+    };
+
+    apps.push(appreturn);
+  }
+} catch {}
 
   /* -------------------- SNAP -------------------- */
   try {
@@ -86,6 +97,13 @@ export async function getInstalledApps(): Promise<BaseReturnData[]> {
         license = licenseMatch?.[1] ?? null;
       } catch {}
 
+      let installPath = "";
+      try {
+        installPath = execSync(`find /snap/bin -name ${name} -type l`, { encoding: "utf8" }).trim(); 
+           } catch {
+        installPath = "";
+      }
+
       const metadata: LinuxPackageMetadata = {
         type: "snap",
         repository: parts[3] || null,
@@ -101,6 +119,7 @@ export async function getInstalledApps(): Promise<BaseReturnData[]> {
         appVersion: parts[1] || null,
         metadata: metadata,
         method: "snap",
+        installPath: installPath
       };
 
       apps.push(appreturn);
@@ -108,37 +127,46 @@ export async function getInstalledApps(): Promise<BaseReturnData[]> {
   } catch {}
 
   /* -------------------- FLATPAK -------------------- */
-  try {
-    const flatpakList = execSync(
-      "flatpak list --app --columns=application,version,origin,arch",
-      { encoding: "utf8" }
-    );
+try {
+  const flatpakList = execSync(
+    "flatpak list --app --columns=application,version,origin,arch",
+    { encoding: "utf8" }
+  );
 
-    for (const line of flatpakList.split("\n")) {
-      if (!line.trim()) continue;
+  for (const line of flatpakList.split("\n")) {
+    if (!line.trim()) continue;
 
-      const [id, version, origin, arch] = line.split("\t");
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
+    const [id, version, origin, arch] = line.split("\t");
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
 
-      const metadata: LinuxPackageMetadata = {
-        type: "flatpak",
-        repository: origin || null,
-        architecture: arch || null,
-        section: "flatpak",
-      };
-      const appreturn: BaseReturnData = {
-        appName: id.split(".").pop() || null,
-        appIdentifier: id,
-        platform: "linux",
-        appVersion: version || null,
-        metadata,
-        method: "flatpak",
-      };
+    let installPath = "";
+    try {
+      installPath = execSync(`flatpak info --show-location ${id}`, {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim();
+    } catch {}
 
-      apps.push(appreturn);
-    }
-  } catch {}
+    const metadata: LinuxPackageMetadata = {
+      type: "flatpak",
+      repository: origin || null,
+      architecture: arch || null,
+      section: "flatpak",
+    };
+    const appreturn: BaseReturnData = {
+      appName: id.split(".").pop() || null,
+      appIdentifier: id,
+      platform: "linux",
+      appVersion: version || null,
+      metadata,
+      method: "flatpak",
+      installPath: installPath,
+    };
+
+    apps.push(appreturn);
+  }
+} catch {}
 
   return apps;
 }

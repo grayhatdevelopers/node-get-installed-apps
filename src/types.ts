@@ -4,6 +4,7 @@ export interface BaseReturnData {
   platform: string;
   appVersion: string | null;
   method: string;
+  installPath: string;
   metadata?: MacMdlsMetadata | MacPlutilMetadata | LinuxPackageMetadata | object;
 }
 

@@ -109,11 +109,20 @@ export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Arra
     }
   } catch (error) {
     // Fallback to plutil for all apps if mdls fails
-    // Run all spawns in parallel and collect results without failing the whole batch
-    const plutilPromises = appsFile.map((app) => {
-      return new Promise<any>((resolve) => {
-        const runPlutilShell = spawn("plutil", ["-p", `${app}/Contents/Info.plist`]);
-        let stdoutData = "";
+    return await parsePlutilData(appsFile);
+  }
+}
+
+/**
+ * getAppsFileInfoPlutil
+ * @param appsFile - array of app paths
+ * @returns All apps fileInfo data using plutil
+ */
+export async function parsePlutilData(appsFile: readonly string[]): Promise<Array<ReturnData<"darwin", "plutil">>> {
+  const plutilPromises = appsFile.map((app) => {
+    return new Promise<ReturnData<"darwin", "plutil"> | null>((resolve) => {
+      const runPlutilShell = spawn("plutil", ["-p", `${app}/Contents/Info.plist`]);
+      let stdoutData = "";
 
         runPlutilShell.stdout.on("data", (data) => {
           stdoutData += data.toString();
@@ -122,6 +131,7 @@ export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Arra
         runPlutilShell.on("close", (code) => {
           if (code === 0) {
             const lines = stdoutData.split(/[(\r\n)\r\n]+/);
+
 
             const appData: Record<string, any> = {};
 
@@ -140,25 +150,28 @@ export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Arra
               }
             }
 
-            resolve(appData);
-          } else {
-            resolve(null);
-          }
-        });
+          const metadata: MacPlutilMetadata = { ...appData };
+          const appReturn: ReturnData<"darwin", "plutil"> = {
+            appName: appData.CFBundleDisplayName || appData.CFBundleName || appData.CFBundleExecutable || null,
+            appVersion: appData.CFBundleShortVersionString || appData.CFBundleVersion || null,
+            appIdentifier: appData.CFBundleIdentifier || null,
+            platform: "darwin",
+            method: "plutil",
+            metadata,
+          };
+
+          resolve(appReturn);
+        } else {
+          resolve(null);
+        }
+      });
 
         runPlutilShell.on("error", () => resolve(null));
       });
     });
 
     const results = await Promise.all(plutilPromises);
-    for (const r of results) {
-      if (r) {
-        allAppsFileInfoList.push(r);
-      }
-    }
-  }
-
-  return allAppsFileInfoList;
+  return results.filter((r): r is ReturnData<"darwin", "plutil"> => r !== null);
 }
 
 /**

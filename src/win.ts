@@ -1,5 +1,6 @@
 import { Registry } from "./utils/registry";
-import { BaseReturnData } from "./types";
+import { ReturnData } from "./types";
+
 export function getInstalledApps() {
   return new Promise(async (resolve, reject) => {
     let HKLM_SOFTWARE_Microsoft: any = [];
@@ -113,13 +114,13 @@ export function getAppData(appKey) {
             }
           }
         }
-        let appreturn: BaseReturnData = {
+        let appreturn: ReturnData<"win32", "registry"> = {
           appName: app.appName || null,
           appIdentifier: app.appIdentifier || null,
           platform: "win32",
           appVersion: app.appVersion || null,
-          metadata: app,
           method: "registry",
+          metadata: app,
         };
         resolve(appreturn);
       });

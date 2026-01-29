@@ -1,19 +1,12 @@
 import { exec, spawn, spawnSync } from "child_process";
-import { BaseReturnData, MacMdlsMetadata, MacPlutilMetadata } from "./types";
+import { BaseReturnData, MacMdlsMetadata, MacPlutilMetadata, ReturnData } from "./types";
 
 export function getInstalledApps(directory:string) {
   return new Promise(async (resolve, reject) => {
     try {
       const directoryContents = await getDirectoryContents(directory);
       const appsFileInfo = await getAppsFileInfo(directoryContents);
-      resolve(
-        appsFileInfo
-          .map((appFileInfo, index) => {
-            const data = getAppData(appFileInfo);
-            return { ...data, path: directoryContents[index] };
-          })
-          .filter((app) => app.appName)
-      );
+      resolve(appsFileInfo);
     } catch (error) {
       reject(error);
     }
@@ -69,6 +62,8 @@ export function getAppsSubDirectory(
  */
 export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Array<any>> {
   const allAppsFileInfoList: any[] = [];
+
+  // First preference: try using mdls for all apps
   try {
     const runMdlsShell = spawnSync("mdls", appsFile, {
       encoding: "utf8",
@@ -97,11 +92,18 @@ export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Arra
         const appLines = stdoutDataArr.slice(startIdx, endIdx).filter((line: string) => line.trim());
         
         if (appLines.length > 0) {
-          allAppsFileInfoList.push({ isMdls: true, lines: appLines });
+          allAppsFileInfoList.push({ lines: appLines });
         }
       }
+
+      // now format the output to match returnData expected format
+      const returnData: ReturnData<"darwin", "mdls">[] = allAppsFileInfoList.map((appFileInfo, index) => {
+            const data = parseMdlsData(appFileInfo.lines);
+            return data;
+          })
+          .filter((app) => app.appName)
       
-      return allAppsFileInfoList;
+      return returnData;
     } else {
       throw new Error("mdls failed");
     }
@@ -157,6 +159,65 @@ export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Arra
   }
 
   return allAppsFileInfoList;
+}
+
+/**
+ * parseMdlsData
+ * @param lines - array of lines from `mdls` command
+ * @returns BaseReturnData
+ */
+export function parseMdlsData(lines: string[]): ReturnData<"darwin", "mdls">[] {
+  const getKeyVal = (lineData: string) => {
+    try {
+      // mdls format: 'kMDItemDisplayName = "App Name"'
+      const lineDataArr = lineData.split("=");
+      return {
+        key: lineDataArr[0].trim().replace(/\"/g, ""),
+        value: lineDataArr[1] ? lineDataArr[1].trim().replace(/\"/g, "") : "",
+      };
+    } catch {
+      return { key: "", value: "" };
+    }
+  };
+
+  try {
+    let appData: Record<string, any> = {};
+
+    lines
+      .filter(Boolean)
+      .forEach((line) => {
+        const { key, value } = getKeyVal(line);
+        if (value) {
+          appData[key] = value;
+        }
+
+        // Map common mdls keys
+        if (key === "kMDItemDisplayName") appData.appName = value;
+        if (key === "kMDItemVersion") appData.appVersion = value;
+        if (key === "kMDItemDateAdded") appData.appInstallDate = value;
+        if (key === "kMDItemCFBundleIdentifier") appData.appIdentifier = value;
+      });
+
+    const metadata: MacMdlsMetadata = { ...appData };
+    const appReturn: ReturnData<"darwin", "mdls"> = {
+      appName: appData.appName || null,
+      appIdentifier: appData.appIdentifier || null,
+      platform: "darwin",
+      appVersion: appData.appVersion || null,
+      method: "mdls",
+      metadata,
+    };
+
+    return appReturn;
+  } catch {
+    return {
+      appName: null,
+      appIdentifier: null,
+      platform: "darwin",
+      appVersion: null,
+      metadata: {},
+    };
+  }
 }
 
 /**

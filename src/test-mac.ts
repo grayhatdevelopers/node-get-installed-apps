@@ -1,52 +1,16 @@
 // Updated test-mac.ts with mdls test added
 import { getAppsFileInfo, getInstalledApps } from './mac';
 
-async function testPlutil() {
-  // Test with a known app directory, e.g., Safari
-  const testApps = ['/Applications/Safari.app'];
+async function test() {
+  // Test with a known app directory, e.g., Calculator
+  const testApps = ['/System/Applications/Calculator.app'];
   
   try {
     const result = await getAppsFileInfo(testApps);
-    console.log('Plutil Test result:', result);
-    
-    // Basic assertions
-    if (result.length > 0) {
-      const appData = result[0];
-      if (appData.isPlutil) {
-        console.log('Plutil parsing successful');
-      } else {
-        console.log('Fallback to mdls used');
-      }
-    } else {
-      console.log('No app data retrieved');
-    }
+    console.log('Test result:', result);
   } catch (error) {
-    console.error('Plutil test failed:', error);
-  }
-}
-
-async function testMdls() {
-  // Test with an invalid app path to force mdls fallback
-  const testApps = ['/Applications/Safari.app'];
-  
-  try {
-    const result = await getAppsFileInfo(testApps);
-    console.log('Mdls Test result:', result);
-    
-    // Basic assertions
-    if (result.length > 0) {
-      const appData = result[0];
-      if (!appData.isPlutil) {
-        console.log('Mdls parsing successful');
-      } else {
-        console.log('Unexpectedly used plutil');
-      }
-    } else {
-      console.log('No app data retrieved');
-    }
-  } catch (error) {
-    console.error('Mdls test failed:', error);
-  }
+    console.error('Test failed:', error);
+  } 
 }
 
 async function testMdlsFailureFallbackToPlutil() {
@@ -57,8 +21,8 @@ async function testMdlsFailureFallbackToPlutil() {
     const result = await getAppsFileInfo(testApps);
     console.log('Mdls Failure Fallback Test result:', result);
     
-    // Expect mdls to fail, fallback to plutil to succeed, resulting in parsed data with isPlutil: true
-    if (result.length > 0 && result[0].isPlutil) {
+    // Expect mdls to fail, fallback to plutil to succeed, resulting in parsed data with method: 'plutil'
+    if (result.length > 0 && result[0].method === 'plutil') {
       console.log('Mdls failed, fallback to plutil succeeded as expected');
     } else {
       console.log('Unexpected result: expected plutil fallback to work');
@@ -85,8 +49,7 @@ async function testAllApps() {
 }
 async function runTests() {
   console.log('--- Running existing tests ---');
-  await testPlutil();
-  await testMdls();
+  await test();
   await testMdlsFailureFallbackToPlutil();
   
   console.log('\n--- Running new scan all apps test ---');

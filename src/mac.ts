@@ -60,7 +60,7 @@ export function getAppsSubDirectory(
  * @param appsFile
  * @returns All apps fileInfo data (tries mdls first, falls back to plutil)
  */
-export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Array<any>> {
+export async function getAppsFileInfo(appsFile: readonly string[]): Promise<ReturnData<"darwin", "mdls" | "plutil">[]> {
   const allAppsFileInfoList: any[] = [];
 
   // First preference: try using mdls for all apps
@@ -97,7 +97,7 @@ export async function getAppsFileInfo(appsFile: readonly string[]): Promise<Arra
       }
 
       // now format the output to match returnData expected format
-      const returnData: ReturnData<"darwin", "mdls">[] = allAppsFileInfoList.map((appFileInfo, index) => {
+      const returnData: ReturnData<"darwin", "mdls">[] = allAppsFileInfoList.map((appFileInfo) => {
             const data = parseMdlsData(appFileInfo.lines);
             return data;
           })
@@ -231,94 +231,5 @@ export function parseMdlsData(lines: string[]): ReturnData<"darwin", "mdls"> {
       method: "mdls",
       metadata: {},
     };
-  }
-}
-
-/**
- * getAppData
- * @param appFileInfo 
- * @returns One app data
- */
-export function getAppData(appFileInfo: any) {
-  try {
-    const getKeyVal = (lineData: string) => {
-      try {
-        // Try mdls format: 'kMDItemDisplayName = "App Name"'
-        const lineDataArr = lineData.split("=");
-        return {
-          key: lineDataArr[0].trim().replace(/\"/g, ""),
-          value: lineDataArr[1] ? lineDataArr[1].trim().replace(/\"/g, "") : "",
-        };
-      } catch (error) {
-        return { key: "", value: "" };
-      }
-    };
-
-    const getAppInfoData = (appArr: Array<any>) => {
-      let appData: any = {};
-      let appreturn: BaseReturnData []=[];
-      try {
-        appArr
-          .filter((i: any) => i)
-          .forEach((o: any) => {
-            let appKeyVal = getKeyVal(o);
-            if (appKeyVal.value) {
-              appData[appKeyVal.key] = appKeyVal.value;
-            }
-            // mdls keys
-            if (o.includes("kMDItemDisplayName")) {
-              appData.appName = appKeyVal.value;
-            }
-            if (o.includes("kMDItemVersion")) {
-              appData.appVersion = appKeyVal.value;
-            }
-            if (o.includes("kMDItemDateAdded")) {
-              appData.appInstallDate = appKeyVal.value;
-            }
-            if (o.includes("kMDItemCFBundleIdentifier")) {
-              appData.appIdentifier = appKeyVal.value;
-            }
-          });
-        
-        let metadata: MacMdlsMetadata = {
-          ...appData
-        };
-        const appreturn: ReturnData<"darwin", "mdls"> = {
-          appName: appData.appName || null,
-          appIdentifier: appData.appIdentifier || null,
-          platform: "darwin",
-          appVersion: appData.appVersion || null,
-          method: "mdls",
-          metadata: metadata,
-        };
-        return appreturn;
-
-      } catch (error) {
-        // Return empty appData on error
-        return {};
-      }      
-    };
-
-    if (appFileInfo.isMdls && appFileInfo.lines) {
-      return getAppInfoData(appFileInfo.lines);
-    } else {
-      try {
-        const metadata: MacPlutilMetadata = {...appFileInfo};
-        const appreturn: ReturnData<"darwin", "plutil">  = {
-          appName: appFileInfo.CFBundleDisplayName || appFileInfo.CFBundleName || appFileInfo.CFBundleExecutable,
-          appVersion: appFileInfo.CFBundleShortVersionString || appFileInfo.CFBundleVersion ,
-          appIdentifier: appFileInfo.CFBundleIdentifier ,
-          platform: "darwin",
-          method: "plutil",
-          metadata: metadata,
-        };
-        return appreturn;
-      } catch (error) {
-        console.error("Error parsing plutil app data:", error);
-        return {};
-      }
-    }
-  } catch (error) {
-    return {};
   }
 }

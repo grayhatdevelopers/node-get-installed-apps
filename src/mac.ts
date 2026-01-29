@@ -196,17 +196,19 @@ export function parseMdlsData(lines: string[]): ReturnData<"darwin", "mdls">[] {
         if (key === "kMDItemVersion") appData.appVersion = value;
         if (key === "kMDItemDateAdded") appData.appInstallDate = value;
         if (key === "kMDItemCFBundleIdentifier") appData.appIdentifier = value;
+        
+        const metadata: MacMdlsMetadata = { ...appData };
+        const appReturn: ReturnData<"darwin", "mdls"> = {
+          appName: appData.appName || null,
+          appIdentifier: appData.appIdentifier || null,
+          platform: "darwin",
+          appVersion: appData.appVersion || null,
+          method: "mdls",
+          metadata,
+        };
+        
       });
 
-    const metadata: MacMdlsMetadata = { ...appData };
-    const appReturn: ReturnData<"darwin", "mdls"> = {
-      appName: appData.appName || null,
-      appIdentifier: appData.appIdentifier || null,
-      platform: "darwin",
-      appVersion: appData.appVersion || null,
-      method: "mdls",
-      metadata,
-    };
 
     return appReturn;
   } catch {

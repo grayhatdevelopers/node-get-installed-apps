@@ -1,4 +1,5 @@
 import { Registry } from "./utils/registry";
+import { ReturnData } from "./types";
 
 export function getInstalledApps() {
   return new Promise(async (resolve, reject) => {
@@ -113,10 +114,25 @@ export function getAppData(appKey) {
             }
           }
         }
-        resolve(app);
+        let appreturn: ReturnData<"win32", "registry"> = {
+          appName: app.appName || null,
+          appIdentifier: app.appIdentifier || null,
+          platform: "win32",
+          appVersion: app.appVersion || null,
+          method: "registry",
+          metadata: app,
+        };
+        resolve(appreturn);
       });
     } catch (err) {
-      resolve(app);
+     resolve({
+        appName: "",
+        appIdentifier: "",
+        installPath: "",
+        platform: "win32",
+        appVersion: app.appVersion || null,
+        metadata: {},
+      });
     }
   });
 }

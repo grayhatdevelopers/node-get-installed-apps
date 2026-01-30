@@ -79,7 +79,7 @@ export async function getInstalledApps(): Promise<ReturnData<"linux", "dpkg" | "
         is_auto_installed: status?.includes("iA") ? 1 : 0,
       };
 
-      const appreturn: ReturnData<"linux", "dpkg"> = {
+      const appReturn: ReturnData<"linux", "dpkg"> = {
         appName: pkg,
         appIdentifier: pkg,
         platform: "linux",
@@ -89,7 +89,7 @@ export async function getInstalledApps(): Promise<ReturnData<"linux", "dpkg" | "
         installPath: installPath || "",
       };
 
-      apps.push(appreturn);
+      apps.push(appReturn);
     });
   } catch {}
   }
@@ -154,7 +154,7 @@ export async function getInstalledApps(): Promise<ReturnData<"linux", "dpkg" | "
         section: "snap",
         description: description,
       };
-      const appreturn: ReturnData<"linux", "snap"> = {
+      const appReturn: ReturnData<"linux", "snap"> = {
         appName: name,
         appIdentifier: name,
         platform: "linux",
@@ -164,7 +164,7 @@ export async function getInstalledApps(): Promise<ReturnData<"linux", "dpkg" | "
         installPath: installPath || "",
       };
 
-      apps.push(appreturn);
+      apps.push(appReturn);
     });
   } catch {}
   }
@@ -213,7 +213,7 @@ export async function getInstalledApps(): Promise<ReturnData<"linux", "dpkg" | "
         architecture: arch || null,
         section: "flatpak",
       };
-      const appreturn: ReturnData<"linux", "flatpak"> = {
+      const appReturn: ReturnData<"linux", "flatpak"> = {
         appName: id.split(".").pop() || null,
         appIdentifier: id,
         platform: "linux",
@@ -223,7 +223,7 @@ export async function getInstalledApps(): Promise<ReturnData<"linux", "dpkg" | "
         installPath: installPath || null,
       };
 
-      apps.push(appreturn);
+      apps.push(appReturn);
     });
   } catch {}
   }

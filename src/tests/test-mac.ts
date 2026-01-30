@@ -1,5 +1,5 @@
 // Updated test-mac.ts with mdls test added
-import { getAppsFileInfo, getInstalledApps } from './mac';
+import { getAppsFileInfo, getInstalledApps } from '../mac';
 
 async function test() {
   // Test with a known app directory, e.g., Calculator

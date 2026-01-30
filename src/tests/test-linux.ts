@@ -1,4 +1,4 @@
-import { getInstalledApps } from './index';
+import { getInstalledApps } from '../index';
 
 export type InstalledApp = {
   appName: string;

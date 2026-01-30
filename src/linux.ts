@@ -1,9 +1,9 @@
 import { execSync } from "child_process";
-import { BaseReturnData,LinuxPackageMetadata } from "./types";
+import { LinuxPackageMetadata, ReturnData } from "./types";
 
 
-export async function getInstalledApps(): Promise<BaseReturnData[]> {
-  const apps: BaseReturnData[] = [];
+export async function getInstalledApps(): Promise<ReturnData<"linux", "dpkg" | "snap" | "flatpak">[]> {
+  const apps: ReturnData<"linux", "dpkg" | "snap" | "flatpak">[] = [];
   const seen = new Set<string>();
 
   /* -------------------- DPKG / APT -------------------- */
@@ -47,7 +47,7 @@ export async function getInstalledApps(): Promise<BaseReturnData[]> {
         is_auto_installed: status?.includes("iA") ? 1 : 0,
       };
 
-      const appreturn: BaseReturnData = {
+      const appreturn: ReturnData<"linux", "dpkg"> = {
         appName: pkg,
         appIdentifier: pkg,
         platform: "linux",
@@ -94,13 +94,13 @@ export async function getInstalledApps(): Promise<BaseReturnData[]> {
         section: "snap",
         description: description,
       };
-      const appreturn: BaseReturnData = {
+      const appreturn: ReturnData<"linux", "snap"> = {
         appName: name,
         appIdentifier: name,
         platform: "linux",
         appVersion: parts[1] || null,
-        metadata: metadata,
         method: "snap",
+        metadata: metadata,
       };
 
       apps.push(appreturn);
@@ -127,15 +127,15 @@ export async function getInstalledApps(): Promise<BaseReturnData[]> {
         architecture: arch || null,
         section: "flatpak",
       };
-      const appreturn: BaseReturnData = {
+      const appreturn: ReturnData<"linux", "flatpak"> = {
         appName: id.split(".").pop() || null,
         appIdentifier: id,
         platform: "linux",
         appVersion: version || null,
-        metadata,
         method: "flatpak",
+        metadata,
       };
-
+      
       apps.push(appreturn);
     }
   } catch {}

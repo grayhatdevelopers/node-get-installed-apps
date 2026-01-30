@@ -16,6 +16,8 @@ English | [简体中文](https://github.com/grayhatdevelopers/node-get-installed
 
 Get installed apps and packages using Node.js. Supports Windows, macOS, and Linux.
 
+> **Note:** This operation is intensive due to heavy file I/O. We recommend caching the retrieved information instead of calling these functions repeatedly.
+
 # 👨‍💻 Installation
 
 `npm install node-get-installed-apps`

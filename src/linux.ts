@@ -1,17 +1,31 @@
-import { execSync } from "child_process";
+import { exec } from "child_process";
+import { promisify } from "util";
 import { LinuxPackageMetadata, ReturnData } from "./types";
+
+const execAsync = promisify(exec);
 
 
 export async function getInstalledApps(): Promise<ReturnData<"linux", "dpkg" | "snap" | "flatpak">[]> {
   const apps: ReturnData<"linux", "dpkg" | "snap" | "flatpak">[] = [];
   const seen = new Set<string>();
 
-  /* -------------------- DPKG / APT -------------------- */
+  async function processDpkg() {
   try {
-    const output = execSync(
+    const output = (await execAsync(
       `dpkg-query -W -f='${"${Package}"}|${"${Version}"}|${"${Architecture}"}|${"${Maintainer}"}|${"${Section}"}|${"${Installed-Size}"}|${"${binary:Summary}"}|${"${db:Status-Abbrev}"}\n'`,
       { encoding: "utf8" }
-    );
+    )).stdout;
+
+    const packages: Array<{
+      pkg: string;
+      version: string;
+      arch: string;
+      maintainer: string;
+      section: string;
+      size: string;
+      summary: string;
+      status: string;
+    }> = [];
 
     for (const line of output.split("\n")) {
       if (!line.trim()) continue;
@@ -32,6 +46,24 @@ export async function getInstalledApps(): Promise<ReturnData<"linux", "dpkg" | "
 
       if (!pkg || seen.has(pkg)) continue;
       seen.add(pkg);
+
+      packages.push({ pkg, version, arch, maintainer, section, size, summary, status });
+    }
+
+    const installPaths = await Promise.all(packages.map(async ({ pkg }) => {
+      try {
+        const result = await execAsync(
+          `dpkg-query -L "${pkg}" | grep -E '\.desktop$' | head -1 | xargs -r grep -m 1 '^Exec=' | cut -d'=' -f2-`,
+          { encoding: "utf8" }
+        );
+        return result.stdout.trim();
+      } catch {
+        return "";
+      }
+    }));
+
+    packages.forEach(({ pkg, version, arch, maintainer, section, size, summary, status }, index) => {
+      const installPath = installPaths[index];
 
       const metadata: LinuxPackageMetadata = {
         type: "dpkg",
@@ -54,42 +86,70 @@ export async function getInstalledApps(): Promise<ReturnData<"linux", "dpkg" | "
         appVersion: version || null,
         method: "dpkg",
         metadata: metadata,
+        installPath: installPath || "",
       };
 
       apps.push(appreturn);
-    }
+    });
   } catch {}
+  }
 
-  /* -------------------- SNAP -------------------- */
+  async function processSnap() {
   try {
-    const snapList = execSync("snap list", { encoding: "utf8" });
-    const snapInfoCache = new Map<string, string>();
+    const snapListOutput = (await execAsync("snap list", { encoding: "utf8" })).stdout;
 
-    for (const line of snapList.split("\n").slice(1)) {
+    const snaps: Array<{
+      name: string;
+      version: string;
+      arch: string;
+      repository: string;
+    }> = [];
+
+    for (const line of snapListOutput.split("\n").slice(1)) {
       const parts = line.trim().split(/\s+/);
       if (!parts[0] || seen.has(parts[0])) continue;
 
       const name = parts[0];
       seen.add(name);
 
-      let description: string | null = null;
-      let license: string | null = null;
+      snaps.push({
+        name,
+        version: parts[1] || "",
+        arch: parts[2] || "",
+        repository: parts[3] || "",
+      });
+    }
 
+    const snapInfos = await Promise.all(snaps.map(async ({ name }) => {
       try {
-        const info = execSync(`snap info ${name}`, { encoding: "utf8" });
-        snapInfoCache.set(name, info);
-
+        const info = (await execAsync(`snap info "${name}"`, { encoding: "utf8" })).stdout;
         const descMatch = info.match(/description:\s+([\s\S]*?)\n\S/);
-        description = descMatch?.[1]?.trim() ?? null;
-
+        const description = descMatch?.[1]?.trim() ?? null;
         const licenseMatch = info.match(/license:\s+(.+)/);
-        license = licenseMatch?.[1] ?? null;
-      } catch {}
+        const license = licenseMatch?.[1] ?? null;
+        return { description, license };
+      } catch {
+        return { description: null, license: null };
+      }
+    }));
+
+    const installPaths = await Promise.all(snaps.map(async ({ name }) => {
+      try {
+        const result = await execAsync(`find /snap/bin -name "${name}" -type l`, { encoding: "utf8" });
+        return result.stdout.trim();
+      } catch {
+        return "";
+      }
+    }));
+
+    snaps.forEach(({ name, version, arch, repository }, index) => {
+      const { description, license } = snapInfos[index];
+      const installPath = installPaths[index];
 
       const metadata: LinuxPackageMetadata = {
         type: "snap",
-        repository: parts[3] || null,
-        architecture: parts[2] || null,
+        repository: repository || null,
+        architecture: arch || null,
         license: license,
         section: "snap",
         description: description,
@@ -98,28 +158,54 @@ export async function getInstalledApps(): Promise<ReturnData<"linux", "dpkg" | "
         appName: name,
         appIdentifier: name,
         platform: "linux",
-        appVersion: parts[1] || null,
-        method: "snap",
+        appVersion: version || null,
         metadata: metadata,
+        method: "snap",
+        installPath: installPath || "",
       };
 
       apps.push(appreturn);
-    }
+    });
   } catch {}
+  }
 
-  /* -------------------- FLATPAK -------------------- */
+  async function processFlatpak() {
   try {
-    const flatpakList = execSync(
+    const flatpakListOutput = (await execAsync(
       "flatpak list --app --columns=application,version,origin,arch",
       { encoding: "utf8" }
-    );
+    )).stdout;
 
-    for (const line of flatpakList.split("\n")) {
+    const flatpaks: Array<{
+      id: string;
+      version: string;
+      origin: string;
+      arch: string;
+    }> = [];
+
+    for (const line of flatpakListOutput.split("\n")) {
       if (!line.trim()) continue;
 
       const [id, version, origin, arch] = line.split("\t");
       if (!id || seen.has(id)) continue;
       seen.add(id);
+
+      flatpaks.push({ id, version: version || "", origin: origin || "", arch: arch || "" });
+    }
+
+    const installPaths = await Promise.all(flatpaks.map(async ({ id }) => {
+      try {
+        const result = await execAsync(`flatpak info --show-location "${id}"`, {
+          encoding: "utf8",
+        });
+        return result.stdout.trim();
+      } catch {
+        return "";
+      }
+    }));
+
+    flatpaks.forEach(({ id, version, origin, arch }, index) => {
+      const installPath = installPaths[index];
 
       const metadata: LinuxPackageMetadata = {
         type: "flatpak",
@@ -134,11 +220,15 @@ export async function getInstalledApps(): Promise<ReturnData<"linux", "dpkg" | "
         appVersion: version || null,
         method: "flatpak",
         metadata,
+        installPath: installPath || null,
       };
-      
+
       apps.push(appreturn);
-    }
+    });
   } catch {}
+  }
+
+  await Promise.all([processDpkg(), processSnap(), processFlatpak()]);
 
   return apps;
 }

@@ -98,7 +98,7 @@ export function getAppData(appKey) {
         if (items) {
           for (var i = 0; i < items.length; i++) {
             if (items[i].value) {
-              app[items[i].name] = items[i].value
+              app[items[i].name] = items[i].value;
             }
             if (items[i].name === "DisplayName") {
               app.appName = items[i].value;
@@ -112,6 +112,9 @@ export function getAppData(appKey) {
             if (items[i].name === "Publisher") {
               app.appPublisher = items[i].value;
             }
+            if (items[i].name === "InstallLocation") {
+              app.installLocation = items[i].value;
+            }
           }
         }
         let appreturn: ReturnData<"win32", "registry"> = {
@@ -121,6 +124,7 @@ export function getAppData(appKey) {
           appVersion: app.appVersion || null,
           method: "registry",
           metadata: app,
+          installPath: app.installLocation || null,
         };
         resolve(appreturn);
       });
@@ -132,6 +136,8 @@ export function getAppData(appKey) {
         platform: "win32",
         appVersion: app.appVersion || null,
         metadata: {},
+        method: "registry",
+        
       });
     }
   });

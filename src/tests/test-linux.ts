@@ -49,6 +49,9 @@ export async function getApp(appName: string): Promise<InstalledApp | undefined>
   
   if (foundApp) {
     console.log(`Found exact match for '${appName}': ${foundApp.appName}`);
+    console.log(`Install path: ${foundApp.installPath}`);
+      console.log(`Method: ${foundApp.method}`);
+
   } else {
     foundApp = installedApps.find(installedApp => (
           installedApp.appName?.toLowerCase().includes(appName.toLowerCase())
@@ -58,6 +61,8 @@ export async function getApp(appName: string): Promise<InstalledApp | undefined>
     )
     if (foundApp) {
       console.log(`Found partial match for '${appName}': ${foundApp.appName}`);
+      console.log(`Install path: ${foundApp.installPath}`);
+      console.log(`Method: ${foundApp.method}`);
     } else {
       console.log(`No match found for '${appName}'.`);
     }

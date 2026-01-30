@@ -19,14 +19,14 @@ Get installed apps and packages using Node.js. Supports Windows, macOS, and Linu
 
 # 👨‍💻 Installation
 
-`npm install get-installed-apps-linux`
+`npm install node-get-installed-apps`
 
 # 🔌 Usage
 
 ES6 Module
 
 ```
-import {getInstalledApps} from 'get-installed-apps-linux'
+import {getInstalledApps} from 'node-get-installed-apps'
 
 getInstalledApps().then(apps => {
   console.log(apps)
@@ -36,7 +36,7 @@ getInstalledApps().then(apps => {
 CommonJS
 
 ```
-const {getInstalledApps} = require('get-installed-apps-linux')
+const {getInstalledApps} = require('node-get-installed-apps')
 getInstalledApps().then(apps => {
   console.log(apps)
 })
@@ -45,7 +45,7 @@ getInstalledApps().then(apps => {
 If you want to use macOS-specific methods separately, you can do it like this.
 
 ```
-import {getMacInstalledApps} from 'get-installed-apps-linux'
+import {getMacInstalledApps} from 'node-get-installed-apps'
 
 getMacInstalledApps().then(apps => {
   console.log(apps)
@@ -57,7 +57,7 @@ getMacInstalledApps().then(apps => {
 If you want to use Windows-specific methods separately, you can do it like this.
 
 ```
-import {getWinInstalledApps} from 'get-installed-apps-linux'
+import {getWinInstalledApps} from 'node-get-installed-apps'
 
 getWinInstalledApps().then(apps => {
   console.log(apps)
@@ -67,7 +67,7 @@ getWinInstalledApps().then(apps => {
 And for Linux-specific methods:
 
 ```
-import {getLinuxInstalledApps} from 'get-installed-apps-linux'
+import {getLinuxInstalledApps} from 'node-get-installed-apps'
 
 getLinuxInstalledApps().then(apps => {
   console.log(apps)

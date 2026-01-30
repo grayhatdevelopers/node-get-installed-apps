@@ -1,5 +1,6 @@
 import { Registry } from "./utils/registry";
-import { BaseReturnData } from "./types";
+import { ReturnData } from "./types";
+
 export function getInstalledApps() {
   return new Promise(async (resolve, reject) => {
     let HKLM_SOFTWARE_Microsoft: any = [];
@@ -116,25 +117,27 @@ export function getAppData(appKey) {
             }
           }
         }
-        let appreturn: BaseReturnData = {
+        let appreturn: ReturnData<"win32", "registry"> = {
           appName: app.appName || null,
           appIdentifier: app.appIdentifier || null,
           platform: "win32",
           appVersion: app.appVersion || null,
-          metadata: app,
-          installPath: app.installLocation || "",
           method: "registry",
+          metadata: app,
+          installPath: app.installLocation || null,
         };
         resolve(appreturn);
       });
     } catch (err) {
-      resolve({
+     resolve({
         appName: "",
         appIdentifier: "",
         installPath: "",
         platform: "win32",
-        appVersion: null,
+        appVersion: app.appVersion || null,
         metadata: {},
+        method: "registry",
+        
       });
     }
   });

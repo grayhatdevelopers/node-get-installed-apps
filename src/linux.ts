@@ -1,75 +1,75 @@
 import { execSync } from "child_process";
-import { BaseReturnData,LinuxPackageMetadata } from "./types";
+import { LinuxPackageMetadata, ReturnData } from "./types";
 
 
-export async function getInstalledApps(): Promise<BaseReturnData[]> {
-  const apps: BaseReturnData[] = [];
+export async function getInstalledApps(): Promise<ReturnData<"linux", "dpkg" | "snap" | "flatpak">[]> {
+  const apps: ReturnData<"linux", "dpkg" | "snap" | "flatpak">[] = [];
   const seen = new Set<string>();
 
   /* -------------------- DPKG / APT -------------------- */
-try {
-  const output = execSync(
-    `dpkg-query -W -f='${"${Package}"}|${"${Version}"}|${"${Architecture}"}|${"${Maintainer}"}|${"${Section}"}|${"${Installed-Size}"}|${"${binary:Summary}"}|${"${db:Status-Abbrev}"}\n'`,
-    { encoding: "utf8" }
-  );
-  
-  for (const line of output.split("\n")) {
-    if (!line.trim()) continue;
+  try {
+    const output = execSync(
+      `dpkg-query -W -f='${"${Package}"}|${"${Version}"}|${"${Architecture}"}|${"${Maintainer}"}|${"${Section}"}|${"${Installed-Size}"}|${"${binary:Summary}"}|${"${db:Status-Abbrev}"}\n'`,
+      { encoding: "utf8" }
+    );
 
-    const parts = line.split("|");
-    if (parts.length < 8) continue;
+    for (const line of output.split("\n")) {
+      if (!line.trim()) continue;
 
-    const [
-      pkg,
-      version,
-      arch,
-      maintainer,
-      section,
-      size,
-      summary,
-      status
-    ] = parts;
+      const parts = line.split("|");
+      if (parts.length < 8) continue;
 
-    if (!pkg || seen.has(pkg)) continue;
-    seen.add(pkg);
+      const [
+        pkg,
+        version,
+        arch,
+        maintainer,
+        section,
+        size,
+        summary,
+        status,
+      ] = parts;
 
-   let installPath = "";
-    try {
-      installPath = execSync(
-        `dpkg-query -L ${pkg} | grep -m 1 '^/opt/.*\\.desktop$' | xargs -r grep -m 1 '^Exec=' | cut -d'=' -f2-`,
-        { encoding: "utf8" }
-      ).trim();
-    } catch {
-      installPath = "";
+      if (!pkg || seen.has(pkg)) continue;
+      seen.add(pkg);
+
+      let installPath = "";
+      try {
+        installPath = execSync(
+          `dpkg-query -L ${pkg} | grep -m 1 '^/opt/.*\\.desktop$' | xargs -r grep -m 1 '^Exec=' | cut -d'=' -f2-`,
+          { encoding: "utf8" }
+        ).trim();
+      } catch {
+        installPath = "";
+      }
+
+      const metadata: LinuxPackageMetadata = {
+        type: "dpkg",
+        architecture: arch || null,
+        maintainer: maintainer || null,
+        section: section || null,
+        description: summary || null,
+        installed_size: size ? Number(size) * 1024 : null,
+        repository: null,
+        license: null,
+        install_date: null,
+        is_system_package: section?.startsWith("libs") || section?.startsWith("admin") ? 1 : 0,
+        is_auto_installed: status?.includes("iA") ? 1 : 0,
+      };
+
+      const appreturn: ReturnData<"linux", "dpkg"> = {
+        appName: pkg,
+        appIdentifier: pkg,
+        platform: "linux",
+        appVersion: version || null,
+        method: "dpkg",
+        metadata: metadata,
+        installPath: installPath || "",
+      };
+
+      apps.push(appreturn);
     }
-
-    const metadata: LinuxPackageMetadata = {
-      type: "dpkg",
-      architecture: arch || null,
-      maintainer: maintainer || null,
-      section: section || null,
-      description: summary || null,
-      installed_size: size ? Number(size) * 1024 : null,
-      repository: null,
-      license: null,
-      install_date: null,
-      is_system_package: section?.startsWith("libs") || section?.startsWith("admin") ? 1 : 0,
-      is_auto_installed: status?.includes("iA") ? 1 : 0,
-    };
-
-    const appreturn: BaseReturnData = {
-      appName: pkg,
-      appIdentifier: pkg,
-      platform: "linux",
-      appVersion: version || null,
-      method: "dpkg",
-      metadata: metadata,
-      installPath: installPath || "",
-    };
-
-    apps.push(appreturn);
-  }
-} catch {}
+  } catch {}
 
   /* -------------------- SNAP -------------------- */
   try {
@@ -112,14 +112,14 @@ try {
         section: "snap",
         description: description,
       };
-      const appreturn: BaseReturnData = {
+      const appreturn: ReturnData<"linux", "snap"> = {
         appName: name,
         appIdentifier: name,
         platform: "linux",
         appVersion: parts[1] || null,
         metadata: metadata,
         method: "snap",
-        installPath: installPath
+        installPath: installPath || "",
       };
 
       apps.push(appreturn);
@@ -140,33 +140,32 @@ try {
     if (!id || seen.has(id)) continue;
     seen.add(id);
 
-    let installPath = "";
+ let installPath = "";
     try {
       installPath = execSync(`flatpak info --show-location ${id}`, {
         encoding: "utf8",
         stdio: ["ignore", "pipe", "ignore"],
       }).trim();
     } catch {}
-
-    const metadata: LinuxPackageMetadata = {
-      type: "flatpak",
-      repository: origin || null,
-      architecture: arch || null,
-      section: "flatpak",
-    };
-    const appreturn: BaseReturnData = {
-      appName: id.split(".").pop() || null,
-      appIdentifier: id,
-      platform: "linux",
-      appVersion: version || null,
-      metadata,
-      method: "flatpak",
-      installPath: installPath,
-    };
-
-    apps.push(appreturn);
-  }
-} catch {}
+      const metadata: LinuxPackageMetadata = {
+        type: "flatpak",
+        repository: origin || null,
+        architecture: arch || null,
+        section: "flatpak",
+      };
+      const appreturn: ReturnData<"linux", "flatpak"> = {
+        appName: id.split(".").pop() || null,
+        appIdentifier: id,
+        platform: "linux",
+        appVersion: version || null,
+        method: "flatpak",
+        metadata,
+        installPath: installPath || null,
+      };
+      
+      apps.push(appreturn);
+    }
+  } catch {}
 
   return apps;
 }

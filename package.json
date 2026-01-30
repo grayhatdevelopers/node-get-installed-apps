@@ -3,12 +3,12 @@
     "access": "public"
   },
   "name": "node-get-installed-apps",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Get installed app using Node.js, supporting Windows, Linux, and macOS.",
-  "homepage": "https://github.com/jbrink90/get-installed-apps",
+  "homepage": "https://github.com/grayhatdevelopers/node-get-installed-apps",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jbrink90/get-installed-apps.git"
+    "url": "https://github.com/grayhatdevelopers/node-get-installed-apps.git"
   },
   "main": "dist/index.js",
   "module": "dist/index.js",

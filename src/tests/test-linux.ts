@@ -38,6 +38,7 @@ export async function getApp(appName: string): Promise<InstalledApp | undefined>
     console.log(`Loaded ${installedApps.length} installed apps.`);
   }
 
+
   foundApp = installedApps.find(installedApp => {
     return (
         installedApp.appName?.toLowerCase() === appName.toLowerCase()
@@ -45,10 +46,12 @@ export async function getApp(appName: string): Promise<InstalledApp | undefined>
         installedApp.appIdentifier?.toLowerCase() === appName.toLowerCase()
       )}
     )
-  console.log('installPath: ', foundApp?.installPath)
-
+  
   if (foundApp) {
     console.log(`Found exact match for '${appName}': ${foundApp.appName}`);
+    console.log(`Install path: ${foundApp.installPath}`);
+      console.log(`Method: ${foundApp.method}`);
+
   } else {
     foundApp = installedApps.find(installedApp => (
           installedApp.appName?.toLowerCase().includes(appName.toLowerCase())
@@ -56,10 +59,10 @@ export async function getApp(appName: string): Promise<InstalledApp | undefined>
           installedApp.appIdentifier?.toLowerCase().includes(appName.toLowerCase())
         )
     )
-    console.log('installPath: ', foundApp?.installPath)
-
     if (foundApp) {
       console.log(`Found partial match for '${appName}': ${foundApp.appName}`);
+      console.log(`Install path: ${foundApp.installPath}`);
+      console.log(`Method: ${foundApp.method}`);
     } else {
       console.log(`No match found for '${appName}'.`);
     }
@@ -70,7 +73,7 @@ export async function getApp(appName: string): Promise<InstalledApp | undefined>
 
 // Test the functions
 (async () => {
-  console.log('Testing isAppInstalled for "teamviewer":');
-  const result = await isAppInstalled('teamviewer');
+  console.log('Testing isAppInstalled for "GIMP":');
+  const result = await isAppInstalled('GIMP');
   console.log('Result:', result);
 })();

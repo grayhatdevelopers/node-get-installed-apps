@@ -73,7 +73,7 @@ export async function getApp(appName: string): Promise<InstalledApp | undefined>
 
 // Test the functions
 (async () => {
-  console.log('Testing isAppInstalled for "GIMP":');
-  const result = await isAppInstalled('GIMP');
+  console.log('Testing isAppInstalled for "activitywatch":');
+  const result = await isAppInstalled('activitywatch');
   console.log('Result:', result);
 })();

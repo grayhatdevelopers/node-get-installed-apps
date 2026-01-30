@@ -99,16 +99,13 @@ export async function getAppsFileInfo(
           .filter((line: string) => line.trim());
 
         if (appLines.length > 0) {
-          allAppsFileInfoList.push({ lines: appLines });
+          allAppsFileInfoList.push({ lines: appLines, path: appsFile[i] });
         }
       }
 
       // now format the output to match returnData expected format
       const returnData: ReturnData<"darwin", "mdls">[] = allAppsFileInfoList
-        .map((appFileInfo) => {
-          const data = parseMdlsData(appFileInfo.lines);
-          return data;
-        })
+        .map((appFileInfo) => parseMdlsData(appFileInfo.lines, appFileInfo.path))
         .filter((app) => app.appName);
 
       return returnData;
@@ -177,6 +174,7 @@ export async function parsePlutilData(
             platform: "darwin",
             method: "plutil",
             metadata,
+            installPath: app,
           };
 
           resolve(appReturn);
@@ -193,14 +191,8 @@ export async function parsePlutilData(
   return results.filter((r): r is ReturnData<"darwin", "plutil"> => r !== null);
 }
 
-/**
- * parseMdlsData
- * @param lines - array of lines from `mdls` command
- * @returns BaseReturnData
- */
 const getKeyVal = (lineData: string) => {
   try {
-    // mdls format: 'kMDItemDisplayName = "App Name"'
     const lineDataArr = lineData.split("=");
     return {
       key: lineDataArr[0].trim().replace(/\"/g, ""),
@@ -211,7 +203,7 @@ const getKeyVal = (lineData: string) => {
   }
 };
 
-export function parseMdlsData(lines: string[]): ReturnData<"darwin", "mdls"> {
+export function parseMdlsData(lines: string[], path: string): ReturnData<"darwin", "mdls"> {
 
   try {
     let appData: Record<string, any> = {};
@@ -237,7 +229,7 @@ export function parseMdlsData(lines: string[]): ReturnData<"darwin", "mdls"> {
       appVersion: appData.appVersion || null,
       method: "mdls",
       metadata,
-      installPath: appData.kMDItemPath || null,
+      installPath: path,
     };
 
     return appReturn;
@@ -250,6 +242,6 @@ export function parseMdlsData(lines: string[]): ReturnData<"darwin", "mdls"> {
       method: "mdls",
       metadata: {},
       installPath: null,
+    };
   }
-}
 }

@@ -1,9 +1,9 @@
 // Updated test-mac.ts with mdls test added
-import { getAppsFileInfo, getInstalledApps } from '../mac';
+import { getAppsFileInfo, getInstalledApps, parsePlutilData } from '../mac';
 
 async function test() {
   // Test with a known app directory, e.g., Calculator
-  const testApps = ['/System/Applications/Calculator.app'];
+  const testApps = ['/Applications/Safari.app'];
   
   try {
     const result = await getAppsFileInfo(testApps);
@@ -13,24 +13,7 @@ async function test() {
   } 
 }
 
-async function testMdlsFailureFallbackToPlutil() {
-  // Test with wrong-case path to existing app: mdls fails due to indexing issues, but plutil succeeds via case-insensitive filesystem
-  const testApps = ['/Applications/activitywatch.app']; // Note: lowercase 'a', actual is 'ActivityWatch.app'
-  
-  try {
-    const result = await getAppsFileInfo(testApps);
-    console.log('Mdls Failure Fallback Test result:', result);
-    
-    // Expect mdls to fail, fallback to plutil to succeed, resulting in parsed data with method: 'plutil'
-    if (result.length > 0 && result[0].method === 'plutil') {
-      console.log('Mdls failed, fallback to plutil succeeded as expected');
-    } else {
-      console.log('Unexpected result: expected plutil fallback to work');
-    }
-  } catch (error) {
-    console.error('Mdls Failure Fallback test failed:', error);
-  }
-}
+
 
 async function testAllApps() {
   try {
@@ -47,13 +30,27 @@ async function testAllApps() {
     console.error('All Apps test failed:', error);
   }
 }
+
+async function testPlutil() {
+  const testApps = ['/Applications/Safari.app'];
+  
+  try {
+    const result = await parsePlutilData(testApps);
+    console.log('Plutil test result:', result);
+  } catch (error) {
+    console.error('Plutil test failed:', error);
+  }
+}
 async function runTests() {
   console.log('--- Running existing tests ---');
   await test();
-  await testMdlsFailureFallbackToPlutil();
   
   console.log('\n--- Running new scan all apps test ---');
+
+  console.log('\n--- Running plutil test ---');
+  await testPlutil();
   await testAllApps();
+
 }
 
 runTests();

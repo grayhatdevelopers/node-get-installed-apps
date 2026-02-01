@@ -52,11 +52,55 @@ export async function getInstalledApps(): Promise<ReturnData<"linux", "dpkg" | "
 
     const installPaths = await Promise.all(packages.map(async ({ pkg }) => {
       try {
-        const result = await execAsync(
-          `dpkg-query -L "${pkg}" | grep -E '\.desktop$' | head -1 | xargs -r grep -m 1 '^Exec=' | cut -d'=' -f2-`,
-          { encoding: "utf8" }
-        );
-        return result.stdout.trim();
+        // Get all files installed by the package
+        const filesResult = await execAsync(`dpkg-query -L "${pkg}"`, { encoding: "utf8" });
+        const files = filesResult.stdout.trim().split('\n').filter(f => f.trim());
+
+        // Priority 1: Look for installation directory in /opt
+        const optFile = files.find(f => f.startsWith('/opt/'));
+        if (optFile) {
+          const match = optFile.match(/^(\/opt\/[^/]+)/);
+          if (match) return match[1];
+        }
+
+        // Priority 2: Look for executables in common bin directories
+        const binPaths = ['/usr/bin/', '/usr/local/bin/', '/bin/', '/sbin/', '/usr/sbin/'];
+        for (const file of files) {
+          for (const binPath of binPaths) {
+            if (file.startsWith(binPath)) {
+              const filename = file.substring(binPath.length);
+              // Only match direct files, not subdirectories
+              if (!filename.includes('/')) {
+                return file;
+              }
+            }
+          }
+        }
+
+        // Priority 3: Try to find a .desktop file and extract the Exec path
+        const desktopFile = files.find(f => f.endsWith('.desktop'));
+        if (desktopFile) {
+          try {
+            const desktopContent = await execAsync(`grep -m 1 '^Exec=' "${desktopFile}"`, { encoding: "utf8" });
+            const execLine = desktopContent.stdout.trim();
+            if (execLine) {
+              // Extract the command path, removing arguments and field codes like %U, %F
+              let execPath = execLine.replace(/^Exec=/, '').split(/\s+/)[0];
+              // Remove any remaining field codes
+              execPath = execPath.replace(/%[a-zA-Z]/g, '').trim();
+              if (execPath) return execPath;
+            }
+          } catch {}
+        }
+
+        // Priority 4: Look for any executable matching the package name in /usr/share or similar
+        const shareDir = files.find(f => f.includes(`/usr/share/${pkg}/`) || f.includes(`/usr/lib/${pkg}/`));
+        if (shareDir) {
+          const match = shareDir.match(new RegExp(`^(/usr/(?:share|lib)/${pkg})`));
+          if (match) return match[1];
+        }
+
+        return "";
       } catch {
         return "";
       }

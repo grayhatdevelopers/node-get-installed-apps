@@ -50,13 +50,50 @@ async function testGetApps() {
 }
 
 async function testGetAppData() {
-  try {
-    // This test is more complex as it requires a specific registry key
-    // For now, we'll test with a mock or skip if no keys available
-    console.log('Get App Data test: Requires specific registry key, skipping detailed test');
-  } catch (error) {
-    console.error('Get App Data test failed:', error);
-  }
+  return new Promise<void>((resolve) => {
+    try {
+      const regKey = new Registry({
+        hive: Registry.HKLM,
+        key: "\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+      });
+
+      // Get the first available app key to test getAppData
+      regKey.keys(async (err: Error, keys: any) => {
+        if (err) {
+          console.error('Failed to get registry keys for getAppData test:', err);
+          resolve();
+          return;
+        }
+
+        if (keys && keys.length > 0) {
+          const firstKey = keys[0];
+          console.log('Testing getAppData with key:', firstKey.key);
+
+          const appData = await getAppData(firstKey) as any;
+          console.log('Get App Data result:', {
+            appName: appData.appName,
+            appIdentifier: appData.appIdentifier,
+            installPath: appData.installPath,
+            platform: appData.platform,
+            method: appData.method
+          });
+
+          // Basic validation
+          if (appData.appName || appData.appIdentifier) {
+            console.log('Successfully retrieved app data');
+          } else {
+            console.log('App data retrieval returned empty result');
+          }
+        } else {
+          console.log('No registry keys available for getAppData test');
+        }
+        resolve();
+      });
+    } catch (error) {
+      console.error('Get App Data test failed:', error);
+      resolve();
+    }
+  });
 }
 
 async function runTests() {

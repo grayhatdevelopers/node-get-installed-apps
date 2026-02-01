@@ -116,6 +116,14 @@ function extractDirectoryPath(filePath: string | undefined): string | null {
 }
 
 /**
+ * Checks if the uninstall string refers to a common system uninstaller
+ */
+function isSystemUninstaller(uninstallStr: string): boolean {
+  const lower = uninstallStr.toLowerCase();
+  return lower.includes('msiexec') || lower.includes('rundll32') || lower.includes('control.exe');
+}
+
+/**
  * Derives the install path from available registry values
  */
 function deriveInstallPath(app: any): string | null {
@@ -135,14 +143,14 @@ function deriveInstallPath(app: any): string | null {
     if (iconPath) return iconPath;
   }
   
-  // Priority 4: Extract from UninstallString
-  if (app.UninstallString) {
+  // Priority 4: Extract from UninstallString (skip if system uninstaller)
+  if (app.UninstallString && !isSystemUninstaller(app.UninstallString)) {
     const uninstallPath = extractDirectoryPath(app.UninstallString);
     if (uninstallPath) return uninstallPath;
   }
   
-  // Priority 5: Extract from QuietUninstallString
-  if (app.QuietUninstallString) {
+  // Priority 5: Extract from QuietUninstallString (skip if system uninstaller)
+  if (app.QuietUninstallString && !isSystemUninstaller(app.QuietUninstallString)) {
     const quietUninstallPath = extractDirectoryPath(app.QuietUninstallString);
     if (quietUninstallPath) return quietUninstallPath;
   }

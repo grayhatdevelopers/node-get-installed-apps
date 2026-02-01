@@ -88,6 +88,68 @@ export function getApps(regKey: any) {
   });
 }
 
+/**
+ * Extracts the directory path from a file path string
+ */
+function extractDirectoryPath(filePath: string | undefined): string | null {
+  if (!filePath) return null;
+  
+  // Remove surrounding quotes if present
+  let cleanPath = filePath.replace(/^["']|["']$/g, '').trim();
+  
+  // Handle paths with arguments (e.g., "C:\path\to\app.exe" --arg)
+  const exeMatch = cleanPath.match(/^(.+\.exe)/i);
+  if (exeMatch) {
+    cleanPath = exeMatch[1];
+  }
+  
+  // Extract directory from file path
+  const lastBackslash = cleanPath.lastIndexOf('\\');
+  const lastForwardSlash = cleanPath.lastIndexOf('/');
+  const lastSeparator = Math.max(lastBackslash, lastForwardSlash);
+  
+  if (lastSeparator > 0) {
+    return cleanPath.substring(0, lastSeparator);
+  }
+  
+  return null;
+}
+
+/**
+ * Derives the install path from available registry values
+ */
+function deriveInstallPath(app: any): string | null {
+  // Priority 1: Direct InstallLocation
+  if (app.InstallLocation && app.InstallLocation.trim()) {
+    return app.InstallLocation.trim();
+  }
+  
+  // Priority 2: Inno Setup App Path
+  if (app['Inno Setup: App Path'] && app['Inno Setup: App Path'].trim()) {
+    return app['Inno Setup: App Path'].trim();
+  }
+  
+  // Priority 3: Extract from DisplayIcon
+  if (app.DisplayIcon) {
+    const iconPath = extractDirectoryPath(app.DisplayIcon);
+    if (iconPath) return iconPath;
+  }
+  
+  // Priority 4: Extract from UninstallString
+  if (app.UninstallString) {
+    const uninstallPath = extractDirectoryPath(app.UninstallString);
+    if (uninstallPath) return uninstallPath;
+  }
+  
+  // Priority 5: Extract from QuietUninstallString
+  if (app.QuietUninstallString) {
+    const quietUninstallPath = extractDirectoryPath(app.QuietUninstallString);
+    if (quietUninstallPath) return quietUninstallPath;
+  }
+  
+  return null;
+}
+
 export function getAppData(appKey) {
   return new Promise((resolve) => {
     let app: any = {};
@@ -112,11 +174,12 @@ export function getAppData(appKey) {
             if (items[i].name === "Publisher") {
               app.appPublisher = items[i].value;
             }
-            if (items[i].name === "InstallLocation") {
-              app.installLocation = items[i].value;
-            }
           }
         }
+        
+        // Dynamically derive install path from available registry values
+        const derivedInstallPath = deriveInstallPath(app);
+        
         let appreturn: ReturnData<"win32", "registry"> = {
           appName: app.appName || null,
           appIdentifier: app.appIdentifier || null,
@@ -124,7 +187,7 @@ export function getAppData(appKey) {
           appVersion: app.appVersion || null,
           method: "registry",
           metadata: app,
-          installPath: app.installLocation || null,
+          installPath: derivedInstallPath,
         };
         resolve(appreturn);
       });

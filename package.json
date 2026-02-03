@@ -30,7 +30,7 @@
     "example": "node example.js",
     "dev": "node example.js",
     "test": "ts-node src/tests/index.ts",
-    "trypublish": "npm publish || true"
+    "publish:package": "pnpm build && npm publish"
   },
   "author": "grayhatdevelopers",
   "license": "MIT",

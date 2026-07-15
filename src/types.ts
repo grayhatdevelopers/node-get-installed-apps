@@ -34,6 +34,11 @@ export interface MacMdlsMetadata {
     kMDItemPhysicalSize?: string;
     kMDItemUseCount?: string;
     kMDItemVersion?: string;
+    // Convenience aliases mirrored from the kMDItem* attributes above
+    appName?: string;
+    appVersion?: string;
+    appIdentifier?: string;
+    appInstallDate?: string;
 }
 
 export interface MacPlutilMetadata {
@@ -100,8 +105,8 @@ export type Win32RegistryMetadata = {
 // -------------------------
 
 export interface BaseReturnData {
-  appName: string;
-  appIdentifier: string;
+  appName: string | null;
+  appIdentifier: string | null;
   appVersion: string | null;
   installPath?: string | null;
 }

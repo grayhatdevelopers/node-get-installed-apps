@@ -1,6 +1,6 @@
 <div align="center">
   <p>
-    <img src="https://img.shields.io/badge/version-1.1.0-blue.svg" alt="Version 1.2.1"/>
+    <img src="https://img.shields.io/badge/version-2.0.0-blue.svg" alt="Version 2.0.0"/>
     <img src="https://img.shields.io/npm/dt/node-get-installed-apps" alt="downloads" />
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License"/>
     <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-success.svg" alt="Platform: Windows | macOS | Linux"/>
@@ -96,8 +96,6 @@ type ReturnData = {
 ```
 
 This is the return value for Visual Studio Code, the properties appName, appIdentifier, appInstallDate, and appVersion are overridden.
-The comment asks to **fix the examples so they match the standardized `ReturnData` structure** described above.
-Below are **corrected, compliant examples** for macOS, Windows, and Linux, keeping the same underlying data but reshaped into the normalized return format.
 
 
 ## macOS
@@ -181,7 +179,7 @@ Below are **corrected, compliant examples** for macOS, Windows, and Linux, keepi
 # 🤔 How it works
 
 - macOS
-  Retrieves the software file directory under 'Applications'. Uses 'mdls' to fetch relevant information about the software files, and then extracts the corresponding information. If 'mdls' fails, it fallbacks to 'plutil'.
+  Scans 'Applications' for .app bundles. Uses 'mdls' (Spotlight) to fetch relevant information about each bundle. Any app missing from the Spotlight index or all apps, if 'mdls' fails entirely, then resolved by reading its Info.plist via 'plutil' instead.
 - Windows
   Retrieves software information by reading data from the registry.
 - Linux
